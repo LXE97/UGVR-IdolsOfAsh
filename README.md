@@ -1,5 +1,5 @@
 # Idols of Ash VR
-This is a fork of UGVR with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
+This is a fork of Universal Godot VR Injector with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
 
 ## Installation
 1. Download the release zip
