@@ -41,6 +41,8 @@ var xr_hand_material_choice : int = 0
 # Internal variable for custom game script
 var custom_game_script : Node
 
+var movement_direction_device : int = 0
+
 # Internal variables to hold emulated gamepad/joypad events that are triggered by motion controllers
 var secondary_x_axis : InputEventJoypadMotion = InputEventJoypadMotion.new()
 var secondary_y_axis : InputEventJoypadMotion = InputEventJoypadMotion.new()
@@ -161,6 +163,7 @@ var roomscale_long_range_3d_cursor_distance_from_camera : float = 20.0
 var use_arm_swing_jump : bool = false
 var use_jog_movement : bool = false
 var jog_triggers_sprint : bool = false
+var terrain_collision_fade : bool = true
 
 # Action map configs
 # Radial menu
@@ -229,6 +232,9 @@ var use_tar_object_picker_finding_code : bool = false
 var use_CRUEL_gun_finding_code : bool = false
 var currentRID = null
 
+var hook_force_multiplier : float = 1.0
+var mod_camera_parent : Node3D
+
 func _ready() -> void:
     set_process(false)
     # Turn off FSR
@@ -284,17 +290,21 @@ func _ready() -> void:
     xr_right_hand.hand_material_override = xr_hand_material
     
     # Set up custom game script node
-    custom_game_script = load("res://xr_injector/custom_scripts/custom_game_script.gd").new()
-    add_child(custom_game_script)
-    custom_game_script.set_xr_scene(self)
+    #custom_game_script = load("res://xr_injector/custom_scripts/custom_game_script.gd").new()
+    #add_child(custom_game_script)
+    #custom_game_script.set_xr_scene(self)
+    
+
     
 var last_scene: Node = null
 func _process(_delta : float) -> void:
     var scene := get_tree().current_scene
     if scene != last_scene:
         last_scene = scene
+        get_refs()
         _on_scene_changed()
-    
+
+    process_joystick_inputs(_delta)
         
     # Experimental for time being, later will have handle_node_reparenting function here and any function to assign node passing its value to it
     if use_test_object_reparenting_code:
@@ -324,17 +334,11 @@ func _process(_delta : float) -> void:
     if !is_instance_valid(xr_left_controller) or !is_instance_valid(xr_right_controller) or use_physical_gamepad_only:
         return
 
-    # Process emulated joypad inputs
-    if !ugvr_menu_showing:
-        process_joystick_inputs(_delta)
-    
     # Process physical melee attacks if enabled
-    _process_melee_attacks(_delta)
+    #_process_melee_attacks(_delta)
 
     # Process haptics if any
-    _set_haptics(_delta)
-    
-    get_refs()
+    #_set_haptics(_delta)
     
 # Constantly checks for current camera 3D, canvaslayers, world environment and roomscale body (if roomscale enabled)
 func _eval_tree() -> void:
@@ -677,9 +681,18 @@ const rope_world_offset := Vector3.DOWN * 0.5
 
 var primary_trigger := false
 var secondary_trigger := false
-var active_controller : XRController3D
+var active_controller : Node3D
 
 func get_refs():
+    # set target for directional movement
+    match movement_direction_device:
+        0:
+            mod_camera_parent = xr_camera_3d
+        1:
+            mod_camera_parent = primary_controller
+        2: 
+            mod_camera_parent = secondary_controller
+            
     if _claw == null or not is_instance_valid(_claw):
         _claw = get_tree().get_root().get_node("Node3D/GrappleClaw")
     if _camera == null or not is_instance_valid(_camera):
@@ -695,7 +708,11 @@ func get_refs():
                 parent.add_child(new_camera)
                 # Redirect script reference
                 parent.Camera = new_camera
-                assign_grappler(true)
+                
+                parent.remove_child(_camera)
+
+                mod_camera_parent.add_child(_camera)
+                
 
 func _on_scene_changed() -> void:
     # set up references
@@ -708,40 +725,86 @@ func _on_scene_changed() -> void:
         healthbar.add_theme_stylebox_override("background", style)
         healthbar.size = Vector2(200,12)
         
+func throw_hook():
+    var new_claw_position: Vector3 = active_controller.global_position
+    var new_claw_rotation: Vector3 = active_controller.global_basis.get_euler() + Vector3(PI, 0.0, 0.0)
+    var new_claw_transform: Transform3D = Transform3D(Basis.from_euler(new_claw_rotation), new_claw_position)
+    _claw.linear_velocity = Vector3.ZERO
+    _claw.angular_velocity = Vector3.ZERO
+    
+    PhysicsServer3D.body_set_state(
+        _claw.get_rid(), 
+        PhysicsServer3D.BODY_STATE_TRANSFORM, 
+        new_claw_transform
+    )
+    PhysicsServer3D.body_set_state(
+        _claw.get_rid(), 
+        PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, 
+        xr_origin_3d.get_parent().velocity
+    )
+    PhysicsServer3D.body_set_state(
+        _claw.get_rid(), 
+        PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, 
+        Vector3.ZERO
+    )
+    global_position = new_claw_transform.origin
+    global_rotation = new_claw_transform.basis.get_euler()
 
-
-var hook_cooldown := 0.0
+    _claw.reset_physics_interpolation()
+    
+    var claw_impulse: Vector3 = active_controller.global_basis.z * -13.0
+    _claw.apply_central_impulse(claw_impulse * hook_force_multiplier)
+    
+var prev_claw_state : bool
 func _physics_process(delta):
     # If any of the references are invalid, return
-    if not (primary_controller and secondary_controller):
+    if not (primary_controller and secondary_controller and _claw and _camera):
         return
-    
-    # LXE97: The claw and the rope have different initial offsets. To make them appear at the same
-    # point, we need to set the Camera local transform when the claw is thrown, and then wait a frame
-    # or 2 (?) before changing the Camera again to update the rope. this probably depends on HMD
-    if _camera != null and _claw != null:
-        if primary_trigger or secondary_trigger and _claw.visible:
-            hook_cooldown += delta
-            if hook_cooldown > 0.025:
-                var cancel_offset := rope_local_offset + _camera.global_basis.inverse() * rope_world_offset
-                _camera.position = -cancel_offset
-
         
-                           
-#re parent the camera to the active controller
-func assign_grappler(isPrimary):
-    hook_cooldown = 0.0
-    if _camera != null:
-        var parent = _camera.get_parent()
-        # Reparent the camera to controller
-        parent.remove_child(_camera)
-        if isPrimary:
-            primary_controller.add_child(_camera)
+    # detect claw throws
+    var claw_active := !_claw.freeze
+    if claw_active != prev_claw_state:
+        if claw_active:
+            throw_hook()
+        prev_claw_state = claw_active
+        
+    # handle buffered triggers
+    if buffer_primary > 0.0:
+        if primary_trigger:
+            buffer_primary -= delta
+            if buffer_primary <= 0.0:
+                var press_event = InputEventJoypadMotion.new()
+                press_event.axis = JOY_AXIS_TRIGGER_RIGHT
+                press_event.axis_value = 1.0
+                active_controller = primary_controller   
+                assign_grappler_noparent(true)
+                print("rising right")
+                Input.parse_input_event(press_event)
         else:
-            secondary_controller.add_child(_camera)
-        _camera.rotation = Vector3.ZERO
-        # claw origin offset
-        _camera.position = Vector3(-0.5, 0.5, 0.0)
+            buffer_primary = 0.0
+    if buffer_secondary > 0.0:
+        if secondary_trigger:
+            buffer_secondary -= delta
+            if buffer_secondary <= 0.0:
+                var press_event = InputEventJoypadMotion.new()
+                press_event.axis = JOY_AXIS_TRIGGER_RIGHT
+                press_event.axis_value = 1.0
+                active_controller = secondary_controller
+                assign_grappler_noparent(true)
+                print("rising left")
+                Input.parse_input_event(press_event)
+        else:
+            buffer_secondary = 0.0    
+        
+    # reposition the camera so the rope segment makes sense
+    if primary_trigger or secondary_trigger and active_controller:
+        var cancel_offset := rope_local_offset + _camera.global_basis.inverse() * rope_world_offset
+        _camera.global_position = active_controller.global_position - _camera.global_basis.x * 0.5 + Vector3.UP * 0.5 
+
+               
+func assign_grappler_noparent(isPrimary):
+    if _camera != null:
+        _camera.global_position = active_controller.global_position
 
 # deal with touchy triggers
 func hysteresis(val: float, state: bool) -> bool:
@@ -758,7 +821,9 @@ func hysteresis(val: float, state: bool) -> bool:
             return true
         return false
 
+const buffer_length := 0.05
 
+var buffer_primary := 0.0
 # Handle analogue button presses on VR controller assigned as primary
 func handle_primary_xr_float(button, value):
     # Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
@@ -781,13 +846,19 @@ func handle_primary_xr_float(button, value):
                     Input.parse_input_event(release_event)
                     print("force trigger release")
                     
+                    # If the claw is still being launched by the other hand, need to wait a few frames
+                    # to let it reset
+                    if !_claw.freeze:
+                        buffer_primary = buffer_length
+                        primary_trigger = true
+                        return
+                active_controller = primary_controller    
                 var press_event = InputEventJoypadMotion.new()
                 press_event.axis = JOY_AXIS_TRIGGER_RIGHT
                 press_event.axis_value = 1.0
                 primary_trigger = true
-                assign_grappler(true)
+                assign_grappler_noparent(true)
                 print("rising right")
-                active_controller = primary_controller    
                 Input.parse_input_event(press_event)
             # falling edge
             else:
@@ -795,7 +866,8 @@ func handle_primary_xr_float(button, value):
                 primary_trigger = false
                 # Ignore trigger releases if the other controller is holding a grapppler
                 if active_controller == primary_controller:
-                    active_controller = null
+                    active_controller = xr_origin_3d
+                    
                     var event = InputEventJoypadMotion.new()
                     event.axis = JOY_AXIS_TRIGGER_RIGHT
                     event.axis_value = 0.0
@@ -812,7 +884,7 @@ func handle_primary_xr_float(button, value):
             event.pressed=false
         Input.parse_input_event(event)
 
-
+var buffer_secondary := 0.0
 # Handle analogue button presses on VR Controller assigned as secondary	 	
 func handle_secondary_xr_float(button, value):
     # Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
@@ -837,13 +909,20 @@ func handle_secondary_xr_float(button, value):
                     Input.parse_input_event(release_event)
                     print("force trigger release")
                     
+                    # If the claw is still being launched by the other hand, need to wait a few frames
+                    # to let it reset
+                    if !_claw.freeze:
+                        buffer_secondary = buffer_length
+                        secondary_trigger = true
+                        return
+                    
                 var press_event = InputEventJoypadMotion.new()
                 press_event.axis = JOY_AXIS_TRIGGER_RIGHT
                 press_event.axis_value = 1.0
                 secondary_trigger = true
-                assign_grappler(false)
+                active_controller = secondary_controller
+                assign_grappler_noparent(false)
                 print("rising left")
-                active_controller = secondary_controller    
                 Input.parse_input_event(press_event)
             # falling edge
             else:
@@ -851,7 +930,7 @@ func handle_secondary_xr_float(button, value):
                 secondary_trigger = false
                 # Ignore trigger releases if the other controller is holding a grapppler
                 if active_controller == secondary_controller:
-                    active_controller = null
+                    active_controller = xr_origin_3d
                     var event = InputEventJoypadMotion.new()
                     event.axis = JOY_AXIS_TRIGGER_RIGHT
                     event.axis_value = 0.0
@@ -922,6 +1001,7 @@ func process_joystick_inputs(_delta : float):
     else:
         Input.parse_input_event(secondary_x_axis)
         Input.parse_input_event(secondary_y_axis)
+
         if not stick_emulate_mouse_movement:
             Input.parse_input_event(primary_x_axis)
             Input.parse_input_event(primary_y_axis)
@@ -1673,6 +1753,7 @@ func find_and_set_player_characterbody3d_or_null():
 # Function to pull current state of config handler game options variables to set same xr scene variables based on user config
 func set_xr_game_options():
     # Load camera options
+    movement_direction_device = xr_config_handler.movement_direction_device
     xr_world_scale = xr_config_handler.xr_world_scale
     camera_offset = xr_config_handler.camera_offset
     experimental_passthrough = xr_config_handler.experimental_passthrough
@@ -1699,6 +1780,7 @@ func set_xr_game_options():
     use_arm_swing_jump = xr_config_handler.use_arm_swing_jump
     use_jog_movement = xr_config_handler.use_jog_movement
     jog_triggers_sprint = xr_config_handler.jog_triggers_sprint
+    terrain_collision_fade = xr_config_handler.terrain_collision_fade
     
     # Load autosave options
     autosave_action_map_duration_in_secs = xr_config_handler.autosave_action_map_duration_in_secs
@@ -1710,6 +1792,8 @@ func set_xr_game_options():
     show_xr_hands = xr_config_handler.show_xr_hands
     xr_hand_material_choice = xr_config_handler.xr_hand_material_choice
     set_xr_hands()
+    
+    hook_force_multiplier = xr_config_handler.hook_force_multiplier
     
     # Set XR worldscale based on config
     xr_origin_3d.world_scale = xr_world_scale
@@ -1724,6 +1808,7 @@ func set_xr_game_options():
 
     # Set xr roomscale controller for hmd or controller directed movement
     xr_roomscale_controller.roomscale_controller_directed_movement = use_roomscale_controller_directed_movement
+    xr_roomscale_controller.terrain_collision_fade = terrain_collision_fade
     
     # Show or Clear Welcome label / Splash Screen
     if show_welcome_label and not welcome_label_already_shown:
