@@ -32,24 +32,29 @@ Use `movement_direction_device` in `game_options.cfg` to change the reference fo
 
 
 ## Other Options
-* Healthbar size and background color can be configured in the file `xr_injector/xr_scene.gd` on line 705 (ctrl+f "healthbar").
-* To adjust camera height or VR world scale, see `game_options.cfg`
+Misc options in `game_options.cfg`:
+* `use_palm_healthbar`
 
-* Hand model: `xr_hand_material_choice` in `game_options.cfg`
-        0# Default - transparent hand
-        1# Full blue glove            
-        2# Half glove dark skinned
-        3# No glove light skinned
-        4# No glove dark skinned
-        5# Full yellow glove
-        6# Ghost hand - half glove light skinned
+  * Disable or resize the floating healthbar
+* `roomscale_height_adjustment`
+* `xr_world_scale`
+  * Adjust camera height and VR world scale
 
+* `xr_hand_material_choice`
+  * Coose a different hand model:
 
-
-I disabled the UGVR gestures such as the laser pointer and height adjustment, as these were too glitchy to deal  with.
+        0 Default - transparent hand
+        1 Full blue glove            
+        2 Half glove dark skinned
+        3 No glove light skinned
+        4 No glove dark skinned
+        5 Full yellow glove
+        6 half glove light skinned
+* `apply_player_momentum`
+  * Add the player's velocity to grappling hook throws (default game: true, recommended)
 
 ## Known Issues
-* While grappling, the camera can clip into objects, sometimes turning the screen black, usually ascending the rope will pull you out of it
+* Collision is not great when grappling into objects from below
 
 ## Credits
 Thanks to [ElKameleon](https://github.com/ElKameleon/DescentWithoutDread/tree/main) for the detailed guide on how to set up Godot mods.
