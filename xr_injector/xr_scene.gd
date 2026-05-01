@@ -235,6 +235,10 @@ var currentRID = null
 var hook_force_multiplier : float = 1.0
 var mod_camera_parent : Node3D
 
+const SCENE_TYPES := {
+    "res://scenes/you_died_scene.tscn": "noVR"
+}
+
 func _ready() -> void:
     set_process(false)
     # Turn off FSR
@@ -296,31 +300,14 @@ func _ready() -> void:
     
 
     
-var last_scene: Node = null
 func _process(_delta : float) -> void:
+    # check for bad scenes
     var scene := get_tree().current_scene
-    if scene != last_scene:
-        last_scene = scene
-        get_refs()
-        _on_scene_changed()
-
-    process_joystick_inputs(_delta)
-        
-    # Experimental for time being, later will have handle_node_reparenting function here and any function to assign node passing its value to it
-    if use_test_object_reparenting_code:
-        _reparent_test_object(_delta)
-
-    if use_vostok_gun_finding_code:
-        _set_vostok_gun(_delta)
+    if scene != null:
+        var path := scene.scene_file_path
+        if path == "res://scenes/you_died_scene.tscn":
+            return
     
-    if use_beton_gun_finding_code:
-        _set_beton_gun(_delta)
-        
-    if use_tar_object_picker_finding_code:
-        _set_tar_object_picker(_delta)
-    
-    if use_CRUEL_gun_finding_code:
-        _set_CRUEL_gun(_delta)
     
     # Trigger method to find active camera and parent XR scene to it at regular intervals
     if Engine.get_process_frames() % 90 == 0:
@@ -329,11 +316,18 @@ func _process(_delta : float) -> void:
         
         if is_instance_valid(xr_origin_3d) and is_instance_valid(xr_camera_3d):
             _eval_tree()
+            
+        _eval_camera_reparent()
+        
+    if _camera != null and is_instance_valid(_camera):
+        _camera.rotation = Vector3.ZERO
     
     # If controllers aren't found, skip processing inputs
     if !is_instance_valid(xr_left_controller) or !is_instance_valid(xr_right_controller) or use_physical_gamepad_only:
         return
 
+    process_joystick_inputs(_delta)
+    
     # Process physical melee attacks if enabled
     #_process_melee_attacks(_delta)
 
@@ -343,7 +337,7 @@ func _process(_delta : float) -> void:
 # Constantly checks for current camera 3D, canvaslayers, world environment and roomscale body (if roomscale enabled)
 func _eval_tree() -> void:
     # Check to make sure main viewport still uses xr; use target_xr_viewport instead of get_viewport directly to account for when roomscale xr origin is reparented under a subviewport in the flat screen game (e.g., retro FPS shooters)
-    if not is_instance_valid(target_xr_viewport):
+    if !is_instance_valid(target_xr_viewport):
         target_xr_viewport = get_viewport()
     
     target_xr_viewport.use_xr = true
@@ -683,40 +677,73 @@ var primary_trigger := false
 var secondary_trigger := false
 var active_controller : Node3D
 
-func get_refs():
-    # set target for directional movement
-    match movement_direction_device:
-        0:
-            mod_camera_parent = xr_camera_3d
-        1:
-            mod_camera_parent = primary_controller
-        2: 
-            mod_camera_parent = secondary_controller
-            
-    if _claw == null or not is_instance_valid(_claw):
+func get_game_refs():
+    if _claw == null or !is_instance_valid(_claw):
         _claw = get_tree().get_root().get_node("Node3D/GrappleClaw")
-    if _camera == null or not is_instance_valid(_camera):
+    if _camera == null or !is_instance_valid(_camera):
         _camera = get_tree().get_root().get_node("Node3D/Climber/PlayerCamera/Camera")
-        if _camera != null:
-            var parent = _camera.get_parent() as PlayerCamera
-            if parent != primary_controller and parent != secondary_controller:
+
+func get_xr_refs():
+    # target for directional movement
+    if mod_camera_parent == null or !is_instance_valid(mod_camera_parent):
+        if xr_origin_3d != null and is_instance_valid(xr_origin_3d):
+            match movement_direction_device:
+                0:
+                    mod_camera_parent = xr_camera_3d
+                1:
+                    mod_camera_parent = primary_controller
+                2: 
+                    mod_camera_parent = secondary_controller
+
+func reparent_camera():
+        if _camera == null or !is_instance_valid(_camera):
+            print("reparent camera failed: invalid camera")
+        elif mod_camera_parent == null or !is_instance_valid(mod_camera_parent):
+            print("reparent camera failed: invalid parent")
+        else:
+            # dispose of already existing cameras
+            for child in mod_camera_parent.get_children():
+                if child is Camera3D:
+                    child.queue_free()
+                    
+            var parent = _camera.get_parent()
+            if parent != null and parent is PlayerCamera:
                 # Create fake camera
                 var new_camera := Camera3D.new()
                 # Copy transform so it matches the old camera
                 new_camera.global_transform = _camera.global_transform
                 # Attach to PlayerCamera
                 parent.add_child(new_camera)
-                # Redirect script reference
+                # Redirect script reference. This stop the mouse from moving the camera
                 parent.Camera = new_camera
                 
                 parent.remove_child(_camera)
 
-                mod_camera_parent.add_child(_camera)
-                
+                mod_camera_parent.add_child(_camera)            
 
-func _on_scene_changed() -> void:
-    # set up references
+func _eval_camera_reparent() -> void:
+    get_game_refs()
+    get_xr_refs()
+
+    if _camera == null or !is_instance_valid(_camera):
+        return
+
+    if mod_camera_parent == null or !is_instance_valid(mod_camera_parent):
+        return
+
+    var parent := _camera.get_parent()
     
+    # Already reparented
+    if parent == mod_camera_parent:
+        return
+
+    # Only reparent if the camera is still under the game's PlayerCamera node
+    if parent != null and parent is PlayerCamera:
+        reparent_camera()
+        modify_ui()
+        
+            
+func modify_ui():
     #healthbar color
     var healthbar := get_tree().get_root().get_node("Node3D/Climber/Hud/HealthbarRoot/Health") as ProgressBar
     if healthbar != null:
@@ -724,7 +751,7 @@ func _on_scene_changed() -> void:
         style.modulate_color = Color.WHITE
         healthbar.add_theme_stylebox_override("background", style)
         healthbar.size = Vector2(200,12)
-        
+    
 func throw_hook():
     var new_claw_position: Vector3 = active_controller.global_position
     var new_claw_rotation: Vector3 = active_controller.global_basis.get_euler() + Vector3(PI, 0.0, 0.0)
@@ -757,8 +784,9 @@ func throw_hook():
     
 var prev_claw_state : bool
 func _physics_process(delta):
+
     # If any of the references are invalid, return
-    if not (primary_controller and secondary_controller and _claw and _camera):
+    if not (primary_controller and secondary_controller and _claw and _camera and active_controller):
         return
         
     # detect claw throws
@@ -777,7 +805,7 @@ func _physics_process(delta):
                 press_event.axis = JOY_AXIS_TRIGGER_RIGHT
                 press_event.axis_value = 1.0
                 active_controller = primary_controller   
-                assign_grappler_noparent(true)
+                assign_grappler_noparent()
                 print("rising right")
                 Input.parse_input_event(press_event)
         else:
@@ -790,20 +818,20 @@ func _physics_process(delta):
                 press_event.axis = JOY_AXIS_TRIGGER_RIGHT
                 press_event.axis_value = 1.0
                 active_controller = secondary_controller
-                assign_grappler_noparent(true)
+                assign_grappler_noparent()
                 print("rising left")
                 Input.parse_input_event(press_event)
         else:
             buffer_secondary = 0.0    
         
     # reposition the camera so the rope segment makes sense
-    if primary_trigger or secondary_trigger and active_controller:
+    if primary_trigger or secondary_trigger:
         var cancel_offset := rope_local_offset + _camera.global_basis.inverse() * rope_world_offset
         _camera.global_position = active_controller.global_position - _camera.global_basis.x * 0.5 + Vector3.UP * 0.5 
 
                
-func assign_grappler_noparent(isPrimary):
-    if _camera != null:
+func assign_grappler_noparent():
+    if _camera != null and active_controller != null:
         _camera.global_position = active_controller.global_position
 
 # deal with touchy triggers
@@ -830,7 +858,8 @@ func handle_primary_xr_float(button, value):
     if ugvr_menu_showing:
         return
     if button == "trigger":
-
+        if _claw == null or !is_instance_valid(_claw):
+            return
         var newstate = hysteresis(value, primary_trigger)
         # only send events on changes above threshold
         if newstate != primary_trigger:     
@@ -844,7 +873,6 @@ func handle_primary_xr_float(button, value):
                     release_event.axis = JOY_AXIS_TRIGGER_RIGHT
                     release_event.axis_value = 0.0
                     Input.parse_input_event(release_event)
-                    print("force trigger release")
                     
                     # If the claw is still being launched by the other hand, need to wait a few frames
                     # to let it reset
@@ -857,17 +885,17 @@ func handle_primary_xr_float(button, value):
                 press_event.axis = JOY_AXIS_TRIGGER_RIGHT
                 press_event.axis_value = 1.0
                 primary_trigger = true
-                assign_grappler_noparent(true)
-                print("rising right")
+                assign_grappler_noparent()
+
                 Input.parse_input_event(press_event)
             # falling edge
             else:
-                print("falling right")
+
                 primary_trigger = false
                 # Ignore trigger releases if the other controller is holding a grapppler
                 if active_controller == primary_controller:
+                    # fallback for glitches due to hook spam
                     active_controller = xr_origin_3d
-                    
                     var event = InputEventJoypadMotion.new()
                     event.axis = JOY_AXIS_TRIGGER_RIGHT
                     event.axis_value = 0.0
@@ -893,6 +921,10 @@ func handle_secondary_xr_float(button, value):
     #print(button)
     #print(value)
     if button == "trigger":
+        
+        # grappling claw input logic
+        if _claw == null or !is_instance_valid(_claw):
+            return
         
         var newstate = hysteresis(value, secondary_trigger)
         # only send events on changes above threshold
@@ -921,7 +953,7 @@ func handle_secondary_xr_float(button, value):
                 press_event.axis_value = 1.0
                 secondary_trigger = true
                 active_controller = secondary_controller
-                assign_grappler_noparent(false)
+                assign_grappler_noparent()
                 print("rising left")
                 Input.parse_input_event(press_event)
             # falling edge
@@ -930,7 +962,9 @@ func handle_secondary_xr_float(button, value):
                 secondary_trigger = false
                 # Ignore trigger releases if the other controller is holding a grapppler
                 if active_controller == secondary_controller:
+                    # fallback for glitches due to hook spam
                     active_controller = xr_origin_3d
+                    
                     var event = InputEventJoypadMotion.new()
                     event.axis = JOY_AXIS_TRIGGER_RIGHT
                     event.axis_value = 0.0
@@ -1136,7 +1170,7 @@ class ReparentedNode:
         
     func handle_node_reparenting():
         var xr_two_handed_aim = false
-        if not is_instance_valid(primary_controller) or not is_instance_valid(secondary_controller):
+        if !is_instance_valid(primary_controller) or !is_instance_valid(secondary_controller):
             return
         
         if active and is_instance_valid(reparented_node):
@@ -1477,12 +1511,12 @@ func set_xr_hands():
     # If hands are lost, bring them back, since they are just cosmetic anyway
     
     # First, if left hand or right hand are invalid, restore them
-    if not is_instance_valid(xr_left_hand):
+    if !is_instance_valid(xr_left_hand):
         xr_left_hand = null
         var xr_left_hand_scene = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn")
         xr_left_hand = xr_left_hand_scene.instantiate()
         xr_left_controller.add_child(xr_left_hand)
-    if not is_instance_valid(xr_right_hand):
+    if !is_instance_valid(xr_right_hand):
         xr_right_hand = null
         var xr_right_hand_scene = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn")
         xr_right_hand = xr_right_hand_scene.instantiate()
@@ -2063,7 +2097,7 @@ func _on_xr_gui_setting_changed(setting_name: String, setting_value: Variant):
 # Trigger XR controller haptics based on game actions if configured by user
 # trigger_haptic_pulse(action_name: String, frequency: float, amplitude: float, duration_sec: float, delay_sec: float)
 func _set_haptics(delta):
-    if not is_instance_valid(primary_controller) and not is_instance_valid(secondary_controller):
+    if !is_instance_valid(primary_controller) and !is_instance_valid(secondary_controller):
         return
     for action in game_actions_triggering_primary_haptics:
         if Input.is_action_pressed(action):
@@ -2077,7 +2111,7 @@ func _set_haptics(delta):
 var primary_melee_attack_processing : bool = false
 var secondary_melee_attack_processing : bool = false
 func _process_melee_attacks(delta):
-    if not is_instance_valid(primary_controller) or not is_instance_valid(secondary_controller):
+    if !is_instance_valid(primary_controller) or !is_instance_valid(secondary_controller):
         return
     
     if primary_controller_melee_velocity == 0.0 and secondary_controller_melee_velocity == 0.0:
@@ -2217,10 +2251,10 @@ func _set_vostok_gun(delta):
                 # First see if weapon is a firearm
                 var vostok_weapon_mesh = vostok_weapon.get_node_or_null("Handling/Sway/Noise/Tilt/Impulse/Recoil/Weapon")
                 # if that's not valid, try to see if it's a knife instead
-                if not is_instance_valid(vostok_weapon_mesh):
+                if !is_instance_valid(vostok_weapon_mesh):
                     vostok_weapon_mesh = vostok_weapon.get_node_or_null("Handling/Sway/Noise/Tilt/Impulse/Knife")
                 # if that's still not valid, try to see if its a instrument instead
-                if not is_instance_valid(vostok_weapon_mesh):
+                if !is_instance_valid(vostok_weapon_mesh):
                     vostok_weapon_mesh = vostok_weapon.get_node_or_null("Sway/Noise/Tilt/Impulse/Instrument")
                 #print(vostok_weapon_mesh)
                 if is_instance_valid(vostok_weapon_mesh) and is_instance_valid(reparented_vostok_weapon):
@@ -2317,7 +2351,7 @@ func _set_CRUEL_gun(delta: float):
             CRUEL_pistol_parent = get_tree().get_root().get_node_or_null("Level/Node/Player/Head/CameraRig/ShakeTarget/CameraShake/Camera/Node3D/WeaponContainer/SwayController/Pistol")
             if CRUEL_pistol_parent != null and xr_origin_reparented:
                 
-                if first_time_reparenting_CRUEL_gun or not is_instance_valid(CRUEL_camera_node):
+                if first_time_reparenting_CRUEL_gun or !is_instance_valid(CRUEL_camera_node):
                     first_time_reparenting_CRUEL_gun = false
                     # Clear prior weapon mesh, if any
                     var controller_children = primary_controller.get_children()
