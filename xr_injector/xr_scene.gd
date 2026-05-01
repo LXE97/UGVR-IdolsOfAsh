@@ -42,6 +42,9 @@ var xr_hand_material_choice : int = 0
 var custom_game_script : Node
 
 var movement_direction_device : int = 0
+var apply_player_momentum : bool = true
+var use_palm_healthbar : bool = true
+var palm_healthbar_scale : float = 0.7
 
 # Internal variables to hold emulated gamepad/joypad events that are triggered by motion controllers
 var secondary_x_axis : InputEventJoypadMotion = InputEventJoypadMotion.new()
@@ -564,10 +567,10 @@ func handle_primary_xr_inputs(button):
         return
 
     # If user just pressed activation button, activate special combo buttons
-    if button == dpad_activation_button:
-        dpad_toggle_active = true
-        start_toggle_active = true
-        select_toggle_active = true
+    #if button == dpad_activation_button:
+        #dpad_toggle_active = true
+        #start_toggle_active = true
+        #select_toggle_active = true
         #print("dpad toggle active")
         
     # Finally pass through remaining gamepad emulation input
@@ -677,6 +680,81 @@ var primary_trigger := false
 var secondary_trigger := false
 var active_controller : Node3D
 
+var mod_viewport : SubViewport
+var mod_viewport_control : Control
+
+var viewportscale = 0.7
+func create_subviewport(parent_3d: Node3D) -> void:
+    mod_viewport = SubViewport.new()
+    mod_viewport.size = Vector2i(128, 128)
+    mod_viewport.transparent_bg = true
+    mod_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+
+    mod_viewport_control = Control.new()
+    mod_viewport_control.size = Vector2(128, 128)
+
+    mod_viewport.add_child(mod_viewport_control)
+
+    var mesh := MeshInstance3D.new()
+    mesh.mesh = QuadMesh.new()
+    mesh.mesh.size = Vector2(0.1, 0.1)
+    mesh.scale = Vector3(viewportscale,viewportscale,viewportscale)
+    
+
+    var mat := StandardMaterial3D.new()
+    mat.albedo_texture = mod_viewport.get_texture()
+    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+    mesh.material_override = mat
+    mesh.position = Vector3(0.01, -0.05, 0.095)
+    mesh.rotation_degrees = Vector3(0, 90, -90)
+
+    parent_3d.add_child(mod_viewport)
+    parent_3d.add_child(mesh)
+
+func steal_healthbar() -> void:
+    var hud = get_tree().get_root().get_node_or_null("Node3D/Climber/Hud")
+
+    if hud == null or mod_viewport_control == null:
+        return
+
+    var hbar := hud.get_node_or_null("HealthbarRoot")
+    if hbar == null:
+        return
+        
+    var slack := hud.get_node_or_null("SlackCircle") as TextureRect
+    if slack == null:
+        return
+
+    hud.remove_child(hbar)
+    mod_viewport_control.add_child(hbar)
+    hbar.anchor_left = 0.5
+    hbar.anchor_right = 0.5
+    hbar.anchor_top = 0.5
+    hbar.anchor_bottom = 0.5
+
+    hbar.offset_left = -61
+    hbar.offset_top = -5
+    hbar.offset_right = 61
+    hbar.offset_bottom = 5
+    
+    
+    hud.remove_child(slack)
+    mod_viewport_control.add_child(slack)
+    slack.anchor_left = 0.5
+    slack.anchor_right = 0.5
+    slack.anchor_top = 0.678
+    slack.anchor_bottom = 0.678
+
+    slack.offset_left = -19
+    slack.offset_top = -19
+    slack.offset_right = 20
+    slack.offset_bottom = 20
+
+    #hbar.position = Vector2(40, 20)
+    #slack.position = Vector2(0, 0)
+
 func get_game_refs():
     if _claw == null or !is_instance_valid(_claw):
         _claw = get_tree().get_root().get_node("Node3D/GrappleClaw")
@@ -719,8 +797,19 @@ func reparent_camera():
                 
                 parent.remove_child(_camera)
 
-                mod_camera_parent.add_child(_camera)            
-
+                mod_camera_parent.add_child(_camera)      
+                
+                # any time we need to reset the camera, we should also reset the palm UI
+                if use_palm_healthbar:
+                    #check for existing UI
+                    for child in secondary_controller.get_children():
+                        if child is SubViewport or child is MeshInstance3D:
+                            child.queue_free()
+                            
+                    create_subviewport(secondary_controller)
+                    steal_healthbar()
+                
+                    
 func _eval_camera_reparent() -> void:
     get_game_refs()
     get_xr_refs()
@@ -764,11 +853,12 @@ func throw_hook():
         PhysicsServer3D.BODY_STATE_TRANSFORM, 
         new_claw_transform
     )
-    PhysicsServer3D.body_set_state(
-        _claw.get_rid(), 
-        PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, 
-        xr_origin_3d.get_parent().velocity
-    )
+    if apply_player_momentum:
+        PhysicsServer3D.body_set_state(
+            _claw.get_rid(), 
+            PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, 
+            xr_origin_3d.get_parent().velocity
+        )
     PhysicsServer3D.body_set_state(
         _claw.get_rid(), 
         PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, 
@@ -994,7 +1084,7 @@ func process_joystick_inputs(_delta : float):
     primary_y_axis.axis_value = -primary_controller.get_vector2("primary").y
     
     # If dpad toggle button is active, then send joystick inputs to dpad instead
-    if dpad_toggle_active:
+    if true:
         seconds_since_last_dpad += _delta
         var cooldown_ready := seconds_since_last_dpad > 0.2
         if secondary_x_axis.axis_value < -0.5 and cooldown_ready:
@@ -1032,7 +1122,7 @@ func process_joystick_inputs(_delta : float):
             Input.parse_input_event(dpad_down)
     
     # Otherwise process joystick like normal		
-    else:
+
         Input.parse_input_event(secondary_x_axis)
         Input.parse_input_event(secondary_y_axis)
 
@@ -1425,6 +1515,8 @@ func setup_viewports():
     
 # Used when setting viewport locations (camera, controllers)
 func reparent_viewport(viewport_node, viewport_location):
+    if viewport_node == null or !is_instance_valid(viewport_node):
+        return
     var viewport_parent = viewport_node.get_parent()
     
     # Check to see if node is already parented to the target parent, if so, nothing to do
@@ -1828,6 +1920,9 @@ func set_xr_game_options():
     set_xr_hands()
     
     hook_force_multiplier = xr_config_handler.hook_force_multiplier
+    apply_player_momentum = xr_config_handler.apply_player_momentum
+    use_palm_healthbar = xr_config_handler.use_palm_healthbar  
+    palm_healthbar_scale = xr_config_handler.palm_healthbar_scale 
     
     # Set XR worldscale based on config
     xr_origin_3d.world_scale = xr_world_scale

@@ -151,7 +151,7 @@ enum TurningType {
 
 # option if user will use only a physical gamepad, deactivates rest of motion control emulation
 var use_physical_gamepad_only : bool = false
-
+var apply_player_momentum : bool = true
 # Maybe unnecessary; maybe we always use gamepad emulation, but still might want to turn this off if someone built a more robust game-specific mod
 var use_gamepad_emulation : bool = true
 
@@ -278,6 +278,9 @@ var show_welcome_label : bool = true
 
 var hook_force_multiplier : float = 1.0
 
+var use_palm_healthbar : bool = true
+var palm_healthbar_scale : float = 0.7
+
 ## ConfigFile variables
 
 # Capture errors in saving and loading
@@ -386,6 +389,9 @@ func load_game_options_cfg_file(file_path: String) -> bool:
     xr_hand_material_choice = game_options_cfg_file.get_value("XR_HANDS_OPTIONS", "xr_hand_material_choice", xr_hand_material_choice)
     
     hook_force_multiplier = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "hook_force_multiplier", hook_force_multiplier)
+    apply_player_momentum = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "apply_player_momentum", apply_player_momentum)
+    use_palm_healthbar = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "use_palm_healthbar", use_palm_healthbar)
+    palm_healthbar_scale = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "palm_healthbar_scale", palm_healthbar_scale)
     
     emit_signal("xr_game_options_cfg_loaded", file_path)
     print("Xr game options config loaded")
@@ -444,6 +450,9 @@ func save_game_options_cfg_file(file_path):
     game_options_cfg_file.set_value("XR_HANDS_OPTIONS", "xr_hand_material_choice", xr_hand_material_choice)
     
     game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "hook_force_multiplier", hook_force_multiplier)
+    game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "apply_player_momentum", apply_player_momentum) 
+    game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "use_palm_healthbar", use_palm_healthbar) 
+    game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "palm_healthbar_scale", palm_healthbar_scale) 
     
     # Now save config file itself
     err = game_options_cfg_file.save(file_path)
