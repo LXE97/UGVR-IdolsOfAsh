@@ -301,24 +301,34 @@ func _ready() -> void:
     #add_child(custom_game_script)
     #custom_game_script.set_xr_scene(self)
     
-
-    
-func _process(_delta : float) -> void:
-    # check for bad scenes
-    var scene := get_tree().current_scene
+func on_scene_changed(scene : Node):
     if scene != null:
         var path := scene.scene_file_path
-        if path == "res://scenes/you_died_scene.tscn":
-            return
+        if scene.scene_file_path == "res://scenes/you_died_scene.tscn":
+            scene.time_in_scene = 10.0
+            pause_badscene_flag = true
+        else:
+            pause_badscene_flag = false
         if path == "res://scenes/MainMenu.tscn":
             var menu := get_tree().get_root().get_node_or_null("Node3D2/MainMenuUI/MainContainer/DefaultTab/MainList/Settings")
             if menu != null:
                 menu.get_parent().remove_child(menu)
                 menu.queue_free()
-                
-            
+        primary_trigger = false
+        secondary_trigger = false
+        active_controller = null
     
-    
+var pause_badscene_flag = false
+var prev_scene : Node = null
+
+func _process(_delta : float) -> void:
+    var scene := get_tree().current_scene
+    if scene != prev_scene:
+        prev_scene = scene
+        on_scene_changed(scene)
+    if pause_badscene_flag:
+        return
+        
     # Trigger method to find active camera and parent XR scene to it at regular intervals
     if Engine.get_process_frames() % 90 == 0:
         if !is_instance_valid(xr_origin_3d):
@@ -837,7 +847,7 @@ func reparent_camera():
                     healthbar.add_theme_stylebox_override("background", style)
                 var slack = xr_origin_3d.get_parent().get_node("Hud/SlackCircle")
                 if slack != null:
-                    slack.material.set_shader_parameter("Un Fill Color", Color.BLACK)
+                    slack.material.set_shader_parameter("un_fill_color", Color.BLACK)
                     
                 if use_palm_healthbar:
                     #check for existing UI
@@ -847,7 +857,6 @@ func reparent_camera():
                             
                     create_subviewport(secondary_controller)
                     steal_healthbar()
-                
                     
 func _eval_camera_reparent() -> void:
     get_game_refs()

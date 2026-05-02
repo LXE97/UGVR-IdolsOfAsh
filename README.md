@@ -30,9 +30,6 @@ Use `movement_direction_device` in `game_options.cfg` to change the reference fo
 2 = Secondary Controller
 ````
 
-#### Menus
-
-
 ## Other Options
 Misc options in `game_options.cfg`:
 * `use_palm_healthbar`
@@ -56,9 +53,9 @@ Misc options in `game_options.cfg`:
   * Add the player's velocity to grappling hook throws (default game: true, recommended)
 
 ## Known Issues
-* When you respawn after dying, the first time you pull the triggers it won't fire
-* After playing the Credits scene at the end of the map, you may need to restart the game
+* The rope can get caught on walls if you clip your hands through
 * Collision is not great when grappling into objects from below
+* After playing the Credits scene at the end of the map, you may need to restart the game
 
 ## Credits
 Thanks to [ElKameleon](https://github.com/ElKameleon/DescentWithoutDread/tree/main) for the detailed guide on how to set up Godot mods.
