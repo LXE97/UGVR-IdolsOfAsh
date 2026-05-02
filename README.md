@@ -20,6 +20,8 @@ idols of ash_xr_game_control_map.cfg        - misc controller settings
 ## Controls
 The VR controller is mapped to Xbox gamepad buttons by `control_map.cfg`, and the game keybindings are configured in `action_map.cfg`. The triggers are hardcoded to fire the grappling hook, but everything else should be configurable.
 
+![Control map](control_map.png)
+
 ### Joystick direction
 Use `movement_direction_device` in `game_options.cfg` to change the reference for the joystick direction. By default it's set to Head (HMD).
 ````
