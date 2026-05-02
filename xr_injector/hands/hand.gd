@@ -134,18 +134,17 @@ func _ready() -> void:
     _animation_player = _find_child(self, "AnimationPlayer")
     _animation_tree = _find_child(self, "AnimationTree")
 
-    # Scale the hand mesh with the world scale.
-
-    _transform = _initial_transform.scaled(Vector3.ONE * XRServer.world_scale)
-    emit_signal("hand_scale_changed", _last_world_scale)
-    global_transform = _target.global_transform * _transform
-    force_update_transform()
-    
     # Apply all updates
     _update_hand_blend_tree()
     _update_hand_material_override()
     _update_pose()
     _update_target()
+    
+    # Scale the hand mesh with the world scale.
+    _transform = _initial_transform.scaled(Vector3.ONE * XRServer.world_scale)
+    emit_signal("hand_scale_changed", _last_world_scale)
+    global_transform = _target.global_transform * _transform
+    force_update_transform()
 
 ## This method checks for world-scale changes and scales itself causing the
 ## hand mesh and skeleton to scale appropriately. It then reads the grip and
