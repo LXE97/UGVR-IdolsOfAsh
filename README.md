@@ -20,7 +20,7 @@ idols of ash_xr_game_control_map.cfg        - misc controller settings
 ## Controls
 The VR controller is mapped to Xbox gamepad buttons by `control_map.cfg`, and the game keybindings are configured in `action_map.cfg`. The triggers are hardcoded to fire the grappling hook, but everything else should be configurable.
 
-#### Joystick direction
+### Joystick direction
 Use `movement_direction_device` in `game_options.cfg` to change the reference for the joystick direction. By default it's set to Head (HMD).
 ````
 0 = HMD
@@ -34,30 +34,33 @@ Use `movement_direction_device` in `game_options.cfg` to change the reference fo
 ## Other Options
 Misc options in `game_options.cfg`:
 * `use_palm_healthbar`
-
   * Disable or resize the floating healthbar
 * `roomscale_height_adjustment`
 * `xr_world_scale`
   * Adjust camera height and VR world scale
-
 * `xr_hand_material_choice`
   * Coose a different hand model:
 
-        0 Default - transparent hand
+        0 Transparent hand
         1 Full blue glove            
         2 Half glove dark skinned
         3 No glove light skinned
         4 No glove dark skinned
         5 Full yellow glove
         6 half glove light skinned
+* `terrain_collision_fade`
+  * Disable the fade-to-black effect when the VR camera goes into a wall
 * `apply_player_momentum`
   * Add the player's velocity to grappling hook throws (default game: true, recommended)
 
 ## Known Issues
+* When you respawn after dying, the first time you pull the triggers it won't fire
 * Collision is not great when grappling into objects from below
 
 ## Credits
 Thanks to [ElKameleon](https://github.com/ElKameleon/DescentWithoutDread/tree/main) for the detailed guide on how to set up Godot mods.
+
+Thanks to the creators of UGVR for all their hard work
 ### [Original UGVR readme](https://github.com/teddybear082/UGVR)
 
 ### [The UGVR wiki](https://github.com/teddybear082/UGVR) may be helpful for customization and troubleshooting
