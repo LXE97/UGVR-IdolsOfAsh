@@ -126,7 +126,8 @@ var primary_action_map = {
         "grip_click":JOY_BUTTON_RIGHT_SHOULDER,
         "primary_click":JOY_BUTTON_RIGHT_STICK,
         "ax_button":JOY_BUTTON_A,
-        "by_button":JOY_BUTTON_X
+        "by_button":JOY_BUTTON_X,
+        "primary_touch":JOY_BUTTON_RIGHT_STICK,
     }
 
 var secondary_action_map = {

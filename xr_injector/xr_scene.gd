@@ -310,6 +310,13 @@ func _process(_delta : float) -> void:
         var path := scene.scene_file_path
         if path == "res://scenes/you_died_scene.tscn":
             return
+        if path == "res://scenes/MainMenu.tscn":
+            var menu := get_tree().get_root().get_node_or_null("Node3D2/MainMenuUI/MainContainer/DefaultTab/MainList/Settings")
+            if menu != null:
+                menu.get_parent().remove_child(menu)
+                menu.queue_free()
+                
+            
     
     
     # Trigger method to find active camera and parent XR scene to it at regular intervals
@@ -330,6 +337,11 @@ func _process(_delta : float) -> void:
         return
 
     process_joystick_inputs(_delta)
+    
+    # Show healthbar
+    if use_palm_healthbar:
+        if xr_origin_3d.get_parent() is CharacterBody3D:
+            update_palm_hud_fade()
     
     # Process physical melee attacks if enabled
     #_process_melee_attacks(_delta)
@@ -699,6 +711,7 @@ func create_subviewport(parent_3d: Node3D) -> void:
     mesh.mesh = QuadMesh.new()
     mesh.mesh.size = Vector2(0.1, 0.1)
     mesh.scale = Vector3(viewportscale,viewportscale,viewportscale)
+    mesh.name = "floatingbar"
     
 
     var mat := StandardMaterial3D.new()
@@ -707,14 +720,14 @@ func create_subviewport(parent_3d: Node3D) -> void:
     mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
     mesh.material_override = mat
-    mesh.position = Vector3(0.01, -0.05, 0.095)
+    mesh.position = Vector3(0.0, -0.05, 0.107)
     mesh.rotation_degrees = Vector3(0, 90, -90)
 
     parent_3d.add_child(mod_viewport)
     parent_3d.add_child(mesh)
 
 func steal_healthbar() -> void:
-    var hud = get_tree().get_root().get_node_or_null("Node3D/Climber/Hud")
+    var hud = xr_origin_3d.get_parent().get_node_or_null("Hud")
 
     if hud == null or mod_viewport_control == null:
         return
@@ -755,11 +768,28 @@ func steal_healthbar() -> void:
     #hbar.position = Vector2(40, 20)
     #slack.position = Vector2(0, 0)
 
+func update_palm_hud_fade() -> void:
+    for child in secondary_controller.get_children():
+        if child is MeshInstance3D:            
+            var to_camera = (xr_camera_3d.global_position - secondary_controller.global_position).normalized()
+
+            var palm_normal = secondary_controller.global_basis.x.normalized()
+
+            var facing = palm_normal.dot(to_camera)
+            var target_alpha = clamp(inverse_lerp(0.6, 0.9, facing), 0.0, 1.0)
+
+            var mat := child.material_override as StandardMaterial3D
+            if mat == null:
+                return
+            mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+            mat.albedo_color.a = target_alpha
+            return
+
 func get_game_refs():
     if _claw == null or !is_instance_valid(_claw):
-        _claw = get_tree().get_root().get_node("Node3D/GrappleClaw")
+        _claw = xr_origin_3d.get_parent().get_parent().get_node("GrappleClaw")
     if _camera == null or !is_instance_valid(_camera):
-        _camera = get_tree().get_root().get_node("Node3D/Climber/PlayerCamera/Camera")
+        _camera = xr_origin_3d.get_parent().get_node("PlayerCamera/Camera")
 
 func get_xr_refs():
     # target for directional movement
@@ -799,7 +829,16 @@ func reparent_camera():
 
                 mod_camera_parent.add_child(_camera)      
                 
-                # any time we need to reset the camera, we should also reset the palm UI
+                # any time we need to reset the camera, we should also re-apply UI modifications
+                var healthbar = xr_origin_3d.get_parent().get_node("Hud/HealthbarRoot/Health")
+                if healthbar != null:
+                    var style := healthbar.get_theme_stylebox("background").duplicate() as StyleBoxTexture
+                    style.modulate_color = Color.BLACK
+                    healthbar.add_theme_stylebox_override("background", style)
+                var slack = xr_origin_3d.get_parent().get_node("Hud/SlackCircle")
+                if slack != null:
+                    slack.material.set_shader_parameter("Un Fill Color", Color.BLACK)
+                    
                 if use_palm_healthbar:
                     #check for existing UI
                     for child in secondary_controller.get_children():
@@ -829,18 +868,7 @@ func _eval_camera_reparent() -> void:
     # Only reparent if the camera is still under the game's PlayerCamera node
     if parent != null and parent is PlayerCamera:
         reparent_camera()
-        modify_ui()
-        
             
-func modify_ui():
-    #healthbar color
-    var healthbar := get_tree().get_root().get_node("Node3D/Climber/Hud/HealthbarRoot/Health") as ProgressBar
-    if healthbar != null:
-        var style := healthbar.get_theme_stylebox("background").duplicate() as StyleBoxTexture
-        style.modulate_color = Color.WHITE
-        healthbar.add_theme_stylebox_override("background", style)
-        healthbar.size = Vector2(200,12)
-    
 func throw_hook():
     var new_claw_position: Vector3 = active_controller.global_position
     var new_claw_rotation: Vector3 = active_controller.global_basis.get_euler() + Vector3(PI, 0.0, 0.0)
@@ -2302,7 +2330,7 @@ func _set_vostok_gun(delta):
 			Pointer Toggle for Menus: Controller to head / TRIGGER
 			Right Click in Menus: A / LOWER FACE BUTTON
 			
-			"""
+            """
             primary_controller.add_child(primary_label_child)
             primary_label_child.transform.origin.y = 0.2
             
@@ -2323,7 +2351,7 @@ func _set_vostok_gun(delta):
 			Prone: B/Y TOP FACE Button
 			Sprint: Swing arms or CLICK / HOLD Stick
 			Slash Knife: TRIGGER
-			"""
+            """
             secondary_controller.add_child(secondary_label_child)
             secondary_label_child.transform.origin.y = 0.2
             await get_tree().create_timer(60.0).timeout

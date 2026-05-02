@@ -2,7 +2,7 @@
 This is a fork of Universal Godot VR Injector with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
 
 ## Installation
-1. Download the release zip
+1. Download the [release zip](https://github.com/LXE97/UGVR-IdolsOfAsh/releases/download/v1.0.0/IdolsOfAsh-VR.zip)
 2. Extract it to your IdolsOfAsh directory (next to idols_of_ash.exe)
     - **If you have installed other mods** that came with their own override.cfg, you'll need to merge those manually. For example:
         ````
@@ -57,6 +57,7 @@ Misc options in `game_options.cfg`:
 
 ## Known Issues
 * When you respawn after dying, the first time you pull the triggers it won't fire
+* After playing the Credits scene at the end of the map, you may need to restart the game
 * Collision is not great when grappling into objects from below
 
 ## Credits
