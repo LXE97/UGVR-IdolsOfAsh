@@ -56,7 +56,11 @@ func _process(delta):
 	# Don't try to run code if xr_scene not set yet
 	if stop_process_flag or not xr_scene:
 		return
-		
+	
+	if xr_scene.use_palm_healthbar:	
+		if xr_scene.get_parent().get_parent() is CharacterBody3D:
+			update_palm_hud_fade()
+	
 	if setup_request:
 		setup_mod()
 	
@@ -76,8 +80,21 @@ func setup_mod():
 	if climber == null or xr_scene.xr_camera_3d == null or !is_instance_valid(xr_scene.xr_camera_3d):
 		print("mod setup fail")
 		return
-		
 	setup_request = false
+	
+	modify_ui_style()
+	
+	if xr_scene.use_palm_healthbar:
+		#check for existing UI
+		for child in xr_scene.xr_left_hand.get_children():
+			if child is SubViewport or child is MeshInstance3D:
+				child.queue_free()
+				
+				
+		create_subviewport(xr_scene.xr_left_hand.get_node("HandMesh"))
+		
+		
+		steal_healthbar()
 	
 	if xr_scene.use_physics_hands:
 		xr_scene.xr_right_hand.blocked.connect(on_hand_blocked)
@@ -162,6 +179,109 @@ func on_hand_unblocked():
 		climber.Rope._settings.airVelocityDrag = 0.001
 	pass
 	
+func modify_ui_style():
+	var healthbar = climber.get_node("Hud/HealthbarRoot/Health")
+	if healthbar != null:
+		var style := healthbar.get_theme_stylebox("background").duplicate() as StyleBoxTexture
+		style.modulate_color = Color.BLACK
+		healthbar.add_theme_stylebox_override("background", style)
+	var slack = climber.get_node("Hud/SlackCircle")
+	if slack != null:
+		slack.material.set_shader_parameter("un_fill_color", Color.BLACK)
+	
+var mod_viewport : SubViewport
+var mod_viewport_control : Control
+var viewportscale = 0.7
+func create_subviewport(parent_3d: Node3D) -> void:
+	mod_viewport = SubViewport.new()
+	mod_viewport.size = Vector2i(128, 128)
+	mod_viewport.transparent_bg = true
+	mod_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+
+	mod_viewport_control = Control.new()
+	mod_viewport_control.size = Vector2(128, 128)
+
+	mod_viewport.add_child(mod_viewport_control)
+
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = QuadMesh.new()
+	mesh.mesh.size = Vector2(0.1, 0.1)
+	mesh.scale = Vector3(viewportscale,viewportscale,viewportscale)
+	mesh.name = "floatingbar"
+	
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = mod_viewport.get_texture()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+	mesh.material_override = mat
+	mesh.position = Vector3(0.033, -0.003, -0.045) * xr_scene.xr_world_scale
+	mesh.rotation_degrees = Vector3(0, 90, -90)
+
+	parent_3d.add_child(mod_viewport)
+	parent_3d.add_child(mesh)
+
+func steal_healthbar() -> void:
+	var hud = climber.get_node_or_null("Hud")
+
+	if hud == null or mod_viewport_control == null:
+		return
+
+	var hbar = hud.get_node_or_null("HealthbarRoot")
+	if hbar == null:
+		return
+		
+	var slack := hud.get_node_or_null("SlackCircle") as TextureRect
+	if slack == null:
+		return
+
+	hud.remove_child(hbar)
+	mod_viewport_control.add_child(hbar)
+	hbar.anchor_left = 0.5
+	hbar.anchor_right = 0.5
+	hbar.anchor_top = 0.5
+	hbar.anchor_bottom = 0.5
+
+	hbar.offset_left = -61
+	hbar.offset_top = -5
+	hbar.offset_right = 61
+	hbar.offset_bottom = 5
+	
+	
+	hud.remove_child(slack)
+	mod_viewport_control.add_child(slack)
+	slack.anchor_left = 0.5
+	slack.anchor_right = 0.5
+	slack.anchor_top = 0.678
+	slack.anchor_bottom = 0.678
+
+	slack.offset_left = -19
+	slack.offset_top = -19
+	slack.offset_right = 20
+	slack.offset_bottom = 20
+
+	#hbar.position = Vector2(40, 20)
+	#slack.position = Vector2(0, 0)
+
+func update_palm_hud_fade() -> void:
+	for child in xr_scene.xr_left_hand.get_children():
+		if child is MeshInstance3D:            
+			var to_camera = (xr_scene.xr_camera_3d.global_position - xr_scene.xr_left_hand.global_position).normalized()
+
+			var palm_normal = xr_scene.xr_left_hand.global_basis.x.normalized()
+
+			var facing = palm_normal.dot(to_camera)
+			var target_alpha = clamp(inverse_lerp(0.6, 0.9, facing), 0.0, 1.0)
+
+			var mat := child.material_override as StandardMaterial3D
+			if mat == null:
+				return
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mat.albedo_color.a = target_alpha
+			return
+
+
 ## Built in UGVR Convenience Functions for Your Potential Use
 # But remember you have full access to all Godot GDSCript scripting for Godot 4 - just be mindful of game's Godot version.
 # To be on the safe side, aim to use Godot 4.2 documentation when finding potential methods, properties and signals
