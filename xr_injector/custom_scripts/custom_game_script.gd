@@ -1,5 +1,7 @@
 extends Node
 
+@export var hand_wall_slowdown := 0.05
+
 # Convenience XR Scene reference (the parent node of all of UGVR), do not modify, will be set in xr_scene.gd
 var xr_scene : Node3D = null
 # Convenience reference to the node at the top of the scene tree in any game, allows finding or getting other nodes in game scene tree
@@ -12,11 +14,14 @@ var prev_scene : Node = null
 
 # main reference for changing player logic
 var climber : Node = null
+var climber_head_collision : Node = null
+
+#flag for initializing mod because we need to wait for the xr_Scene to settle
+var setup_request = true
 
 func _ready():
 	pass
 	
-
 func _on_scene_changed(new_scene: Node) -> void:
 	if new_scene:
 		print("scene changed to: ", new_scene.scene_file_path)
@@ -37,14 +42,9 @@ func _on_scene_changed(new_scene: Node) -> void:
 				menu.queue_free()
 				return
 
-		setup_mod()
+		setup_request = true
 	else:
 		print("scene changed to null")
-
-# Called only once after xr scene and all convenience variables are set, insert any code you want to run then here
-# Note that you can now access any of the xr scene variables directly at this point, example: xr_scene.xr_pointer.enabled=false
-func _on_xr_setup_run_once():
-	xr_scene.xr_pointer.set_enabled(false)
 
 func _process(delta):
 	var scene := get_tree().current_scene
@@ -56,27 +56,49 @@ func _process(delta):
 	# Don't try to run code if xr_scene not set yet
 	if stop_process_flag or not xr_scene:
 		return
+		
+	if setup_request:
+		setup_mod()
 	
-	# Run single use function the first time after all convenience variables are set up
-	if not on_xr_setup_already_run:
-		on_xr_setup_already_run = true
-		_on_xr_setup_run_once()
-	
-	# Note that you can now access any of the xr scene variables directly, example: xr_scene.xr_pointer.enabled=false
-
+var head_collider_offset := Vector3(0.0, 0.07, 0.0)
 func _physics_process(delta):
 	# Don't try to run code if xr_scene not set yet
 	if not xr_scene:
 		return
+		
+	if climber_head_collision != null and is_instance_valid(climber_head_collision):
+		climber_head_collision.global_position = xr_scene.xr_camera_3d.global_position + head_collider_offset * xr_scene.xr_world_scale
 
 func setup_mod():
 	print("mod setup")
 	
 	climber = find_first_node_by_name("Climber")
-	if climber == null:
+	if climber == null or xr_scene.xr_camera_3d == null or !is_instance_valid(xr_scene.xr_camera_3d):
 		print("mod setup fail")
 		return
 		
+	setup_request = false
+	
+	xr_scene.xr_right_hand.blocked.connect(on_hand_blocked)
+	xr_scene.xr_right_hand.unblocked.connect(on_hand_unblocked)
+	xr_scene.xr_left_hand.blocked.connect(on_hand_blocked)
+	xr_scene.xr_left_hand.unblocked.connect(on_hand_unblocked)
+		
+	# get head collider transform or make one
+	if climber_head_collision == null or !is_instance_valid(climber_head_collision):
+		for child in climber.get_children():
+			if child is CollisionShape3D:
+				if child.shape is SphereShape3D:
+					climber_head_collision = child
+					climber_head_collision.shape.radius = 0.25 * xr_scene.xr_world_scale
+		if climber_head_collision == null:
+			climber_head_collision = CollisionShape3D.new()
+			var sphere := SphereShape3D.new()
+			sphere.radius = 0.25 * xr_scene.xr_world_scale
+			climber_head_collision.shape = sphere
+			climber.add_child(climber_head_collision)
+				
+				
 	# Script overrides
 	var playercameramod := load("res://xr_injector/modded_scripts/player_camera_mod.gd")
 	climber.PlayerCamera.set_script(playercameramod)
@@ -84,7 +106,11 @@ func setup_mod():
 	var edgemod := load("res://xr_injector/modded_scripts/climbing_edge_player_mod.gd")
 	climber.Edge.set_script(edgemod)
 	climber.Edge.setup(climber)
-	climber.Edge.set_root(xr_scene.xr_right_hand)
+	climber.Edge.set_root(xr_scene.xr_right_hand, true)
+	climber.Edge.scale = xr_scene.xr_world_scale * 0.85
+	var light := climber.get_node_or_null("OmniLight3D") as OmniLight3D
+	if light != null:
+		light.light_energy *= 0.8
 
 	var clawmod := load("res://xr_injector/modded_scripts/climber_claw_mod.gd")
 	var _claw = climber.Rope._claw
@@ -104,12 +130,35 @@ func setup_mod():
 	_claw._edge = _edge
 	#TODO: change on keypress
 	_claw.thrower_node=xr_scene.xr_right_hand
+	_claw.default_light_intensity *= 0.5
+	_claw.omni_light.light_energy *= 0.5
+	_claw._ready()
 
 	var ropevisualmod := load("res://xr_injector/modded_scripts/climber_rope_visual_mod.gd")
 	var ropevisual = climber.Rope._rope_visual
 	ropevisual.set_script(ropevisualmod)
-	ropevisual.scale_radius = 0.5#xr_scene.xr_world_scale
+	ropevisual.scale_radius = xr_scene.xr_world_scale * 0.85
 	ropevisual.setup(climber.Rope)
+	
+	# set hands material to normal depth test
+	var left = xr_scene.xr_left_hand.get_node_or_null("HandMesh/Armature/Skeleton3D/mesh_Hand_Nails_low_L")
+	if left == null:
+		left = xr_scene.xr_left_hand.get_node_or_null("Hand_Nails_low_L/Armature/Skeleton3D/mesh_Hand_Nails_low_L")
+	var right = xr_scene.xr_right_hand.get_node_or_null("HandMesh/Armature/Skeleton3D/mesh_Hand_Nails_low_R")
+	if right == null:
+		right = xr_scene.xr_right_hand.get_node_or_null("Hand_Nails_low_R/Armature/Skeleton3D/mesh_Hand_Nails_low_R")
+	
+	left.get_active_material(0).no_depth_test = false
+	
+func on_hand_blocked():
+	climber.Rope._settings.airVelocityDrag += hand_wall_slowdown
+	pass
+	
+func on_hand_unblocked():
+	climber.Rope._settings.airVelocityDrag -= hand_wall_slowdown
+	if climber.Rope._settings.airVelocityDrag < 0.001:
+		climber.Rope._settings.airVelocityDrag = 0.001
+	pass
 	
 ## Built in UGVR Convenience Functions for Your Potential Use
 # But remember you have full access to all Godot GDSCript scripting for Godot 4 - just be mindful of game's Godot version.
@@ -194,3 +243,4 @@ func show_node(node : Node) -> void:
 func set_xr_scene(new_xr_scene) -> void:
 	xr_scene = new_xr_scene
 	scene_root = get_node("/root")
+	xr_scene.xr_pointer.set_enabled(false)

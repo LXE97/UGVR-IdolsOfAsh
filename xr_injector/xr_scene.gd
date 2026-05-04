@@ -514,6 +514,7 @@ func map_xr_controllers_to_action_map() -> bool:
 	return true
 
 var original_world_scale := xr_world_scale
+var original_roomscale_height_adjustment := 1.0
 # Handle button presses on VR controller assigned as primary
 func handle_primary_xr_inputs(button):
 	#print("primary contoller button pressed: ", button)
@@ -525,24 +526,28 @@ func handle_primary_xr_inputs(button):
 		# If we're using a special gesture, don't trigger the underlying game action
 		return
 	
-	# Scale world to player height
+	# Set  player height
 	if button == gesture_set_user_height_button and gesture_area.overlaps_area(primary_detection_area):
-		if abs(original_world_scale - xr_world_scale) > 0.01:
-			print("Resetting world scale to ", original_world_scale)
-			xr_world_scale = original_world_scale
+		if abs(original_roomscale_height_adjustment - roomscale_height_adjustment) > 0.005:
+			print("Resetting player height to ", original_roomscale_height_adjustment)
+			roomscale_height_adjustment = original_roomscale_height_adjustment
+			
 			
 		else:
-			var game_character_height := current_camera.transform.origin.y
+			var game_character_height := current_camera.global_position.y
 			print("Game character height: ", game_character_height)
-			var real_height := xr_camera_3d.transform.origin.y
+			var real_height := xr_camera_3d.global_position.y
 			print("Player VR height: ", real_height)
-			xr_world_scale = game_character_height / real_height
-			print("Setting VR scale to ", xr_world_scale)
 			
-		xr_origin_3d.world_scale = xr_world_scale
-		set_worldscale_for_xr_nodes(xr_world_scale)
-		custom_game_script.climber.Rope._rope_visual.scale_radius = xr_world_scale
-		custom_game_script.climber.Rope._rope_visual.setup(custom_game_script.climber.Rope)
+			roomscale_height_adjustment = game_character_height - real_height
+			print("Setting height offset to ", roomscale_height_adjustment)
+		
+		xr_roomscale_controller.roomscale_height_adjustment = roomscale_height_adjustment
+		#xr_origin_3d.world_scale = xr_world_scale
+		#set_worldscale_for_xr_nodes(xr_world_scale)
+		#custom_game_script.climber.Rope._rope_visual.scale_radius = xr_world_scale
+		#custom_game_script.climber.Rope._rope_visual.setup(custom_game_script.climber.Rope)
+		#set_xr_hands()
 			
 		#print("User height: ", user_height)
 		# this doesn't do anything to the camera
@@ -1592,6 +1597,7 @@ func set_xr_game_options():
 	# Load roomscale options
 	use_roomscale = xr_config_handler.use_roomscale
 	roomscale_height_adjustment = xr_config_handler.roomscale_height_adjustment
+	original_roomscale_height_adjustment = roomscale_height_adjustment
 	attempt_to_use_camera_to_set_roomscale_height = xr_config_handler.attempt_to_use_camera_to_set_roomscale_height
 	reverse_roomscale_direction = xr_config_handler.reverse_roomscale_direction
 	use_roomscale_controller_directed_movement = xr_config_handler.use_roomscale_controller_directed_movement

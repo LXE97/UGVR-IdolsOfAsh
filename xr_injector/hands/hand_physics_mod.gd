@@ -1,7 +1,6 @@
 @tool
 extends CharacterBody3D
 
-
 ## XR Tools Hand-physics Script
 ##
 ## This script manages a godot-xr-tools hand. It animates the hand blending
@@ -81,6 +80,9 @@ var _target_overrides := []
 # Current target (controller or override)
 var _target : Node3D
 
+var is_blocked := false
+signal blocked
+signal unblocked
 
 ## Pose-override class
 class PoseOverride:
@@ -227,6 +229,15 @@ func _physics_process(delta: float) -> void:
 	if get_slide_collision_count() == 0:
 		global_position = target_pos
 		smoothing = free_smoothing
+		if is_blocked:
+			is_blocked = false
+			unblocked.emit()
+			
+	# update blocked state
+	else:
+		if !is_blocked:
+			is_blocked = true
+			blocked.emit()
 
 	# Rotation smoothing
 	var rot_t := 1.0 - exp(-smoothing * delta)
