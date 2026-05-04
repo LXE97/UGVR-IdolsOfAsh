@@ -1,2 +1,5 @@
 # Godot 4+ specific ignores
 .godot/
+!xr_injector/
+!xr_injector/**
+!overridecfg
