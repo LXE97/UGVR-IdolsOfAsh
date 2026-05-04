@@ -37,6 +37,7 @@ extends Node3D
 var show_xr_hands : bool = true
 var xr_hand_material = preload("res://xr_injector/hands/materials/labglove_transparent.tres")
 var xr_hand_material_choice : int = 0
+var use_physics_hands : bool = true
 
 # Internal variable for custom game script
 var custom_game_script : Node
@@ -529,8 +530,6 @@ func handle_primary_xr_inputs(button):
 		if abs(original_world_scale - xr_world_scale) > 0.01:
 			print("Resetting world scale to ", original_world_scale)
 			xr_world_scale = original_world_scale
-			xr_origin_3d.world_scale = xr_world_scale
-			set_worldscale_for_xr_nodes(xr_world_scale)
 			
 		else:
 			var game_character_height := current_camera.transform.origin.y
@@ -539,8 +538,11 @@ func handle_primary_xr_inputs(button):
 			print("Player VR height: ", real_height)
 			xr_world_scale = game_character_height / real_height
 			print("Setting VR scale to ", xr_world_scale)
-			xr_origin_3d.world_scale = xr_world_scale
-			set_worldscale_for_xr_nodes(xr_world_scale)
+			
+		xr_origin_3d.world_scale = xr_world_scale
+		set_worldscale_for_xr_nodes(xr_world_scale)
+		custom_game_script.climber.Rope._rope_visual.scale_radius = xr_world_scale
+		custom_game_script.climber.Rope._rope_visual.setup(custom_game_script.climber.Rope)
 			
 		#print("User height: ", user_height)
 		# this doesn't do anything to the camera
@@ -677,6 +679,22 @@ func handle_secondary_xr_release(button):
 		event.pressed = false
 		Input.parse_input_event(event)
 
+# stop trigger bouncing
+func hysteresis(val: float, state: bool) -> bool:
+	const mod_lower := 0.2
+	const mod_upper := 0.3
+	if state:
+		# currently pressed - check for release
+		if val < mod_lower:
+			return false
+		return true
+	else:
+		# currently released - check for press
+		if val > mod_upper:
+			return true
+		return false
+
+var primary_trigger_state = false
 # Handle analogue button presses on VR controller assigned as primary
 func handle_primary_xr_float(button, value):
 	# Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
@@ -685,10 +703,16 @@ func handle_primary_xr_float(button, value):
 	#print(button)
 	#print(value)
 	if button == "trigger":
-		var event = InputEventJoypadMotion.new()
-		event.axis = JOY_AXIS_TRIGGER_RIGHT
-		event.axis_value = value
-		Input.parse_input_event(event)
+		var newstate = hysteresis(value, primary_trigger_state)
+		if newstate != primary_trigger_state:
+			primary_trigger_state = newstate
+			var event = InputEventJoypadMotion.new()
+			event.axis = JOY_AXIS_TRIGGER_RIGHT
+			if newstate:
+				event.axis_value = 1.0
+			else:
+				event.axis_value = 0.0
+			Input.parse_input_event(event)
 		
 	if button == "grip":
 		var event = InputEventJoypadButton.new()
@@ -701,6 +725,7 @@ func handle_primary_xr_float(button, value):
 			event.pressed=false
 		Input.parse_input_event(event)
 
+var secondary_trigger_state = false
 # Handle analogue button presses on VR Controller assigned as secondary	 	
 func handle_secondary_xr_float(button, value):
 	# Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
@@ -709,10 +734,17 @@ func handle_secondary_xr_float(button, value):
 	#print(button)
 	#print(value)
 	if button == "trigger":
-		var event = InputEventJoypadMotion.new()
-		event.axis = JOY_AXIS_TRIGGER_LEFT
-		event.axis_value = value
-		Input.parse_input_event(event)
+		var newstate = hysteresis(value, secondary_trigger_state)
+		if newstate != secondary_trigger_state:
+			secondary_trigger_state = newstate
+			var event = InputEventJoypadMotion.new()
+			event.axis = JOY_AXIS_TRIGGER_LEFT
+			if newstate:
+				event.axis_value = 1.0
+			else:
+				event.axis_value = 0.0
+			event.axis_value = value
+			Input.parse_input_event(event)
 		
 	if button == "grip":
 		var event = InputEventJoypadButton.new()
@@ -1249,36 +1281,51 @@ func _on_xr_radial_menu_entry_selected(entry : String):
 		await get_tree().create_timer(0.2).timeout
 		Input.action_release(entry)
 
+func instantiate_hand(isLeft : bool):
+	if isLeft:
+		xr_left_hand = null
+		if use_physics_hands:
+			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low_physics.tscn").instantiate()
+			xr_left_hand.xr_camera = xr_camera_3d
+		else:
+			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn").instantiate()
+		xr_left_controller.add_child(xr_left_hand)
+	else:
+		xr_right_hand = null
+		if use_physics_hands:
+			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low_physics.tscn").instantiate()
+			xr_right_hand.xr_camera = xr_camera_3d
+		else:
+			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn").instantiate()
+		xr_right_controller.add_child(xr_right_hand)
+
 # Function to set whether XR Hands are visible and the material
 func set_xr_hands():
+	# LXE97: reload them every time to account for use_physics_hand option
+	if is_instance_valid(xr_right_hand):
+		xr_right_hand.queue_free()
+	if  is_instance_valid(xr_left_hand):
+		xr_left_hand.queue_free()
+	instantiate_hand(true)
+	instantiate_hand(false)
+	print("hands reloaded")
+	
 	# If hands are lost, bring them back, since they are just cosmetic anyway
 	
 	# First, if left hand or right hand are invalid, restore them
 	if not is_instance_valid(xr_left_hand):
-		xr_left_hand = null
-		var xr_left_hand_scene = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn")
-		xr_left_hand = xr_left_hand_scene.instantiate()
-		xr_left_controller.add_child(xr_left_hand)
+		instantiate_hand(true)
 	if not is_instance_valid(xr_right_hand):
-		xr_right_hand = null
-		var xr_right_hand_scene = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn")
-		xr_right_hand = xr_right_hand_scene.instantiate()
-		xr_right_controller.add_child(xr_right_hand)
+		instantiate_hand(false)
 	
 	# Second, check if hands somehow floated away (more than 1 relative game unit) unexpectedly
 	# Using length_squared because per docs it is faster than Vector3.length()
 	if (xr_left_hand.global_transform.origin - xr_left_controller.global_transform.origin).length_squared() > (1.0 * xr_world_scale):
 		xr_left_hand.queue_free()
-		xr_left_hand = null
-		var xr_left_hand_scene = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn")
-		xr_left_hand = xr_left_hand_scene.instantiate()
-		xr_left_controller.add_child(xr_left_hand)
+		instantiate_hand(true)
 	if (xr_right_hand.global_transform.origin - xr_right_controller.global_transform.origin).length_squared() > (1.0 * xr_world_scale):
 		xr_right_hand.queue_free()
-		xr_right_hand = null
-		var xr_right_hand_scene = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn")
-		xr_right_hand = xr_right_hand_scene.instantiate()
-		xr_right_controller.add_child(xr_right_hand)
+		instantiate_hand(false)
 	
 	# Set xr hand model visibility
 	if show_xr_hands:
@@ -1565,6 +1612,7 @@ func set_xr_game_options():
 	# Load XR Hands options
 	show_xr_hands = xr_config_handler.show_xr_hands
 	xr_hand_material_choice = xr_config_handler.xr_hand_material_choice
+	
 	set_xr_hands()
 	
 	# Set XR worldscale based on config
