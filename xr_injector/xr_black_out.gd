@@ -12,7 +12,7 @@ func _update_fade():
 	if fade == 0.0:
 		$MeshInstance3D.visible = false
 	else:
-		if material:
+		if get_parent().get_parent().terrain_collision_fade and material:
 			material.set_shader_parameter("albedo", Color(0.0, 0.0, 0.0, fade))
 		$MeshInstance3D.visible = true
 

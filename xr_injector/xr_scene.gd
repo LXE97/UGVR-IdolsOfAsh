@@ -37,7 +37,6 @@ extends Node3D
 var show_xr_hands : bool = true
 var xr_hand_material = preload("res://xr_injector/hands/materials/labglove_transparent.tres")
 var xr_hand_material_choice : int = 0
-var use_physics_hands : bool = true
 
 # Internal variable for custom game script
 var custom_game_script : Node
@@ -229,6 +228,17 @@ var use_beton_gun_finding_code : bool = false
 var use_tar_object_picker_finding_code : bool = false
 var use_CRUEL_gun_finding_code : bool = false
 var currentRID = null
+
+# LXE97
+var terrain_collision_fade : bool = true
+var hook_force_multiplier : float = 1.0
+var use_palm_healthbar : bool = true
+var palm_healthbar_scale : float = 0.7
+var apply_player_momentum : bool = true
+var use_head_collider : bool = true
+var use_physics_hands : bool = true
+var physics_hand_drag : float = 0.05
+var player_light_multiplier : float = 0.8
 
 func _ready() -> void:
 	set_process(false)
@@ -1580,6 +1590,17 @@ func find_and_set_player_characterbody3d_or_null():
 
 # Function to pull current state of config handler game options variables to set same xr scene variables based on user config
 func set_xr_game_options():
+	# LXE97
+	terrain_collision_fade = xr_config_handler.terrain_collision_fade
+	hook_force_multiplier = xr_config_handler.hook_force_multiplier
+	apply_player_momentum = xr_config_handler.apply_player_momentum
+	use_palm_healthbar = xr_config_handler.use_palm_healthbar
+	palm_healthbar_scale = xr_config_handler.palm_healthbar_scale
+	use_head_collider = xr_config_handler.use_head_collider
+	use_physics_hands = xr_config_handler.use_physics_hands
+	physics_hand_drag = xr_config_handler.physics_hand_drag
+	player_light_multiplier = xr_config_handler.player_light_multiplier
+
 	# Load camera options
 	xr_world_scale = xr_config_handler.xr_world_scale
 	camera_offset = xr_config_handler.camera_offset

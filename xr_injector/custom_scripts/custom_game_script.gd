@@ -79,24 +79,26 @@ func setup_mod():
 		
 	setup_request = false
 	
-	xr_scene.xr_right_hand.blocked.connect(on_hand_blocked)
-	xr_scene.xr_right_hand.unblocked.connect(on_hand_unblocked)
-	xr_scene.xr_left_hand.blocked.connect(on_hand_blocked)
-	xr_scene.xr_left_hand.unblocked.connect(on_hand_unblocked)
+	if xr_scene.use_physics_hands:
+		xr_scene.xr_right_hand.blocked.connect(on_hand_blocked)
+		xr_scene.xr_right_hand.unblocked.connect(on_hand_unblocked)
+		xr_scene.xr_left_hand.blocked.connect(on_hand_blocked)
+		xr_scene.xr_left_hand.unblocked.connect(on_hand_unblocked)
 		
 	# get head collider transform or make one
-	if climber_head_collision == null or !is_instance_valid(climber_head_collision):
-		for child in climber.get_children():
-			if child is CollisionShape3D:
-				if child.shape is SphereShape3D:
-					climber_head_collision = child
-					climber_head_collision.shape.radius = 0.25 * xr_scene.xr_world_scale
-		if climber_head_collision == null:
-			climber_head_collision = CollisionShape3D.new()
-			var sphere := SphereShape3D.new()
-			sphere.radius = 0.25 * xr_scene.xr_world_scale
-			climber_head_collision.shape = sphere
-			climber.add_child(climber_head_collision)
+	if xr_scene.use_head_collider:
+		if climber_head_collision == null or !is_instance_valid(climber_head_collision):
+			for child in climber.get_children():
+				if child is CollisionShape3D:
+					if child.shape is SphereShape3D:
+						climber_head_collision = child
+						climber_head_collision.shape.radius = 0.25 * xr_scene.xr_world_scale
+			if climber_head_collision == null:
+				climber_head_collision = CollisionShape3D.new()
+				var sphere := SphereShape3D.new()
+				sphere.radius = 0.25 * xr_scene.xr_world_scale
+				climber_head_collision.shape = sphere
+				climber.add_child(climber_head_collision)
 				
 				
 	# Script overrides
@@ -110,7 +112,7 @@ func setup_mod():
 	climber.Edge.scale = xr_scene.xr_world_scale * 0.85
 	var light := climber.get_node_or_null("OmniLight3D") as OmniLight3D
 	if light != null:
-		light.light_energy *= 0.8
+		light.light_energy *= xr_scene.player_light_multiplier
 
 	var clawmod := load("res://xr_injector/modded_scripts/climber_claw_mod.gd")
 	var _claw = climber.Rope._claw
@@ -130,8 +132,8 @@ func setup_mod():
 	_claw._edge = _edge
 	#TODO: change on keypress
 	_claw.thrower_node=xr_scene.xr_right_hand
-	_claw.default_light_intensity *= 0.5
-	_claw.omni_light.light_energy *= 0.5
+	_claw.default_light_intensity *= xr_scene.player_light_multiplier
+	_claw.omni_light.light_energy *= xr_scene.player_light_multiplier
 	_claw._ready()
 
 	var ropevisualmod := load("res://xr_injector/modded_scripts/climber_rope_visual_mod.gd")
@@ -151,11 +153,11 @@ func setup_mod():
 	left.get_active_material(0).no_depth_test = false
 	
 func on_hand_blocked():
-	climber.Rope._settings.airVelocityDrag += hand_wall_slowdown
+	climber.Rope._settings.airVelocityDrag += xr_scene.physics_hand_drag
 	pass
 	
 func on_hand_unblocked():
-	climber.Rope._settings.airVelocityDrag -= hand_wall_slowdown
+	climber.Rope._settings.airVelocityDrag -= xr_scene.physics_hand_drag
 	if climber.Rope._settings.airVelocityDrag < 0.001:
 		climber.Rope._settings.airVelocityDrag = 0.001
 	pass
