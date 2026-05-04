@@ -41,45 +41,50 @@ void fragment() {
 }
 """
 
-# Put game specific custom variables here for your code, e.g., var game_name_important_node = null
-
-
-# Called when the node enters the scene tree for the first time.  Can't use convenience references yet as they will not be set up yet.
 func _ready():
 	pass
+	
+var stop_process_flag = false
+func _on_scene_changed(new_scene: Node) -> void:
+	if new_scene:
+		var path := new_scene.scene_file_path
+		if new_scene.scene_file_path == "res://scenes/you_died_scene.tscn":
+			new_scene.time_in_scene = 10.0
+			stop_process_flag = true
+			xr_scene.set_process(false)
+		else:
+			stop_process_flag = false
+			xr_scene.set_process(true)
+		if path == "res://scenes/MainMenu.tscn":
+			var menu := get_tree().get_root().get_node_or_null("Node3D2/MainMenuUI/MainContainer/DefaultTab/MainList/Settings")
+			if menu != null:
+				menu.get_parent().remove_child(menu)
+				menu.queue_free()
 
 # Called only once after xr scene and all convenience variables are set, insert any code you want to run then here
 # Note that you can now access any of the xr scene variables directly at this point, example: xr_scene.xr_pointer.enabled=false
 func _on_xr_setup_run_once():
 	xr_scene.xr_pointer.set_enabled(false)
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
+var prev_scene : Node = null
 func _process(delta):
+	var scene := get_tree().current_scene
+	if scene != prev_scene:
+		prev_scene = scene
+		_on_scene_changed(scene)
+	if stop_process_flag:
+		return
 	# Don't try to run code if xr_scene not set yet
-	if not xr_scene:
+	if stop_process_flag or not xr_scene:
 		return
 	
-	# Always make sure references to convenience variables are current
-	left_controller = xr_scene.xr_left_controller
-	right_controller = xr_scene.xr_right_controller
-	hmd = xr_scene.xr_camera_3d
-	primary_controller = xr_scene.primary_controller
-	secondary_controller = xr_scene.secondary_controller
-	active_flat_screen_camera3D = xr_scene.current_camera
-	
-	# If any of the references are invalid, return (may have to use not is_instance_valid() here instead)
-	if not (left_controller and right_controller and hmd and primary_controller and secondary_controller):
-		return
-		
 	# Run single use function the first time after all convenience variables are set up
 	if not on_xr_setup_already_run:
 		on_xr_setup_already_run = true
 		_on_xr_setup_run_once()
 	
-	# Put any code you want to run each tick here
 	# Note that you can now access any of the xr scene variables directly, example: xr_scene.xr_pointer.enabled=false
 
-# Called each physics frame
 func _physics_process(delta):
 	# Don't try to run code if xr_scene not set yet
 	if not xr_scene:
@@ -89,11 +94,7 @@ func _physics_process(delta):
 	if not (left_controller and right_controller and hmd and primary_controller and secondary_controller):
 		return
 	
-	# Put any code you want to run each physics tick here
 	
-
-
-
 ## Built in UGVR Convenience Functions for Your Potential Use
 # But remember you have full access to all Godot GDSCript scripting for Godot 4 - just be mindful of game's Godot version.
 # To be on the safe side, aim to use Godot 4.2 documentation when finding potential methods, properties and signals

@@ -1166,6 +1166,8 @@ func setup_viewports():
 	
 # Used when setting viewport locations (camera, controllers)
 func reparent_viewport(viewport_node, viewport_location):
+	if viewport_node == null or !is_instance_valid(viewport_node):
+		return
 	var viewport_parent = viewport_node.get_parent()
 	
 	# Check to see if node is already parented to the target parent, if so, nothing to do
