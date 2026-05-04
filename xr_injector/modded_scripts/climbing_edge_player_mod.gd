@@ -1,6 +1,6 @@
 extends ClimbingEdgePlayer
 
-var root_node : Node3D = null
+var root_node : Node = null
 
 func get_global_position() -> Vector3:
 	if root_node != null:
@@ -8,5 +8,5 @@ func get_global_position() -> Vector3:
 	else:
 		return Vector3.ZERO
 
-func set_root(target: Node3D):
+func set_root(target: Node):
 	root_node = target
