@@ -10,6 +10,9 @@ var on_xr_setup_already_run : bool = false
 var stop_process_flag = false
 var prev_scene : Node = null
 
+# main reference for changing player logic
+var climber : Node = null
+
 func _ready():
 	pass
 	
@@ -68,19 +71,45 @@ func _physics_process(delta):
 
 func setup_mod():
 	print("mod setup")
-	# change vanilla scripts
-	var climber := find_first_node_by_name("Climber")
+	
+	climber = find_first_node_by_name("Climber")
 	if climber == null:
+		print("mod setup fail")
 		return
 		
-	var player_camera = climber.get_node_or_null("PlayerCamera")
-	if player_camera != null:
-		var modscript := load("res://xr_injector/modded_scripts/player_camera_mod.gd")
-		player_camera.set_script(modscript)
+	# Script overrides
+	var playercameramod := load("res://xr_injector/modded_scripts/player_camera_mod.gd")
+	climber.PlayerCamera.set_script(playercameramod)
 	
-		
+	var edgemod := load("res://xr_injector/modded_scripts/climbing_edge_player_mod.gd")
+	climber.Edge.set_script(edgemod)
+	climber.Edge.setup(climber)
+	climber.Edge.set_root(xr_scene.xr_right_hand)
+
+	var clawmod := load("res://xr_injector/modded_scripts/climber_claw_mod.gd")
+	var _claw = climber.Rope._claw
+
+	var _edge =  _claw._edge
+	var _visualHook = _claw._visualHook
+	var _meshInstanceHook=_claw._meshInstanceHook
+	var _collisionShape = _claw._collisionShape
+	var omni_light = _claw.omni_light
 	
-	return
+	_claw.set_script(clawmod)
+	_claw._visualHook = _visualHook
+	_claw._meshInstanceHook = _meshInstanceHook
+	_claw._collisionShape = _collisionShape
+	_claw.omni_light = omni_light
+	_claw._climber = climber
+	_claw._edge = _edge
+	#TODO: change on keypress
+	_claw.thrower_node=xr_scene.xr_right_hand
+
+	var ropevisualmod := load("res://xr_injector/modded_scripts/climber_rope_visual_mod.gd")
+	var ropevisual = climber.Rope._rope_visual
+	ropevisual.set_script(ropevisualmod)
+	ropevisual.scale_radius = xr_scene.xr_world_scale
+	ropevisual.setup(climber.Rope)
 	
 ## Built in UGVR Convenience Functions for Your Potential Use
 # But remember you have full access to all Godot GDSCript scripting for Godot 4 - just be mindful of game's Godot version.
@@ -160,7 +189,7 @@ func show_node(node : Node) -> void:
 			if "visible" in property_dictionary["name"]:
 				node.visible = true
 				break
-	
+
 # Setter function for xr_scene reference, called in xr_scene.gd automatically
 func set_xr_scene(new_xr_scene) -> void:
 	xr_scene = new_xr_scene

@@ -529,8 +529,6 @@ func handle_primary_xr_inputs(button):
 		if abs(original_world_scale - xr_world_scale) > 0.01:
 			print("Resetting world scale to ", original_world_scale)
 			xr_world_scale = original_world_scale
-			xr_origin_3d.world_scale = xr_world_scale
-			set_worldscale_for_xr_nodes(xr_world_scale)
 			
 		else:
 			var game_character_height := current_camera.transform.origin.y
@@ -539,8 +537,11 @@ func handle_primary_xr_inputs(button):
 			print("Player VR height: ", real_height)
 			xr_world_scale = game_character_height / real_height
 			print("Setting VR scale to ", xr_world_scale)
-			xr_origin_3d.world_scale = xr_world_scale
-			set_worldscale_for_xr_nodes(xr_world_scale)
+			
+		xr_origin_3d.world_scale = xr_world_scale
+		set_worldscale_for_xr_nodes(xr_world_scale)
+		custom_game_script.climber.Rope._rope_visual.scale_radius = xr_world_scale
+		custom_game_script.climber.Rope._rope_visual.setup(custom_game_script.climber.Rope)
 			
 		#print("User height: ", user_height)
 		# this doesn't do anything to the camera
