@@ -1377,7 +1377,6 @@ func find_and_set_active_camera_3d():
 		# Set last camera as current camera to avoid running through this special loop every iteration
 		if available_cameras != null and available_cameras.size() >= 1:
 			current_camera = available_cameras[-1]
-	set
 	# If using roomscale 3D cursor, make the cursor visible on the active camera (someday for performance should condense the get_tree().get_nodes_in_group("possible_xr_cameras") to only call it once and then use that variable for all the various checks		
 	if use_roomscale_3d_cursor == true or use_long_range_3d_cursor == true:
 		# If there's only one camera, assume it's our active camera and add the 3D cursor
