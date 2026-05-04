@@ -402,7 +402,7 @@ func _eval_tree() -> void:
 				var err = xr_roomscale_controller.set_enabled(true, xr_origin_3d, reverse_roomscale_direction, null, primary_controller, use_roomscale_controller_directed_movement, roomscale_height_adjustment)
 			@warning_ignore("unused_variable")
 			var err2 = xr_roomscale_controller.recenter()
-			current_camera = null
+			#current_camera = null
 			current_camera_remote_transform = null
 			xr_origin_reparented = true
 			target_xr_viewport.use_xr = false
@@ -511,7 +511,8 @@ func map_xr_controllers_to_action_map() -> bool:
 	
 	# Return true to alert that function is completed
 	return true
-	
+
+var original_world_scale := xr_world_scale
 # Handle button presses on VR controller assigned as primary
 func handle_primary_xr_inputs(button):
 	#print("primary contoller button pressed: ", button)
@@ -523,12 +524,28 @@ func handle_primary_xr_inputs(button):
 		# If we're using a special gesture, don't trigger the underlying game action
 		return
 	
-	# (Temporary) Set user height if user presses designated button while doing gesture
+	# Scale world to player height
 	if button == gesture_set_user_height_button and gesture_area.overlaps_area(primary_detection_area):
-		print("Now resetting user height")
-		user_height = xr_camera_3d.transform.origin.y
-		print("User height: ", user_height)
-		apply_user_height(user_height)
+		if abs(original_world_scale - xr_world_scale) > 0.01:
+			print("Resetting world scale to ", original_world_scale)
+			xr_world_scale = original_world_scale
+			xr_origin_3d.world_scale = xr_world_scale
+			set_worldscale_for_xr_nodes(xr_world_scale)
+			
+		else:
+			var game_character_height := current_camera.transform.origin.y
+			print("Game character height: ", game_character_height)
+			var real_height := xr_camera_3d.transform.origin.y
+			print("Player VR height: ", real_height)
+			xr_world_scale = game_character_height / real_height
+			print("Setting VR scale to ", xr_world_scale)
+			xr_origin_3d.world_scale = xr_world_scale
+			set_worldscale_for_xr_nodes(xr_world_scale)
+			
+		#print("User height: ", user_height)
+		# this doesn't do anything to the camera
+		#apply_user_height(user_height)
+
 		# If we're using a special gesture, don't trigger the underlying game action
 		return
 	
@@ -553,7 +570,7 @@ func handle_primary_xr_inputs(button):
 		return
 	
 	# Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
-	if ugvr_menu_showing:
+	if false and ugvr_menu_showing:
 		return
 
 	# If user just pressed activation button, activate special combo buttons
@@ -616,16 +633,16 @@ func handle_secondary_xr_inputs(button):
 
 	
 	# Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
-	if ugvr_menu_showing:
+	if false and ugvr_menu_showing:
 		return
 		
-	if start_toggle_active and button == start_button:
+	if false and start_toggle_active and button == start_button:
 		var event = InputEventJoypadButton.new()
 		event.button_index = JOY_BUTTON_START
 		event.pressed = true
 		Input.parse_input_event(event)
 		
-	if select_toggle_active and button == select_button:
+	if false and select_toggle_active and button == select_button:
 		var event = InputEventJoypadButton.new()
 		event.button_index = JOY_BUTTON_BACK
 		event.pressed = true
