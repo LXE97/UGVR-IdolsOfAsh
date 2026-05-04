@@ -51,8 +51,7 @@ func _ready():
 # Called only once after xr scene and all convenience variables are set, insert any code you want to run then here
 # Note that you can now access any of the xr scene variables directly at this point, example: xr_scene.xr_pointer.enabled=false
 func _on_xr_setup_run_once():
-	# Example: This automatically shows the game controls for 30 seconds once xr is set up
-	show_vr_control_mapping(30.0)
+	xr_scene.xr_pointer.set_enabled(false)
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):

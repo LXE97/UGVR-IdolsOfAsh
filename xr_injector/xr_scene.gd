@@ -319,7 +319,7 @@ func _process(_delta : float) -> void:
 
 	# Process emulated joypad inputs
 	if !ugvr_menu_showing:
-		process_joystick_inputs()
+		process_joystick_inputs(_delta)
 	
 	# Process physical melee attacks if enabled
 	_process_melee_attacks(_delta)
@@ -517,7 +517,7 @@ func handle_primary_xr_inputs(button):
 	#print("primary contoller button pressed: ", button)
 	
 	# Toggle pointers if user holds primary hand over their head and presses toggle button
-	if button == pointer_gesture_toggle_button and gesture_area.overlaps_area(primary_detection_area):
+	if false and button == pointer_gesture_toggle_button and gesture_area.overlaps_area(primary_detection_area):
 		xr_pointer.set_enabled(!xr_pointer.enabled)
 		toggle_xr_gui_menu()
 		# If we're using a special gesture, don't trigger the underlying game action
@@ -533,7 +533,7 @@ func handle_primary_xr_inputs(button):
 		return
 	
 	# Temporary : Try toggling active camera for xr camera to follow manually	
-	if button == gesture_toggle_active_camera_button and gesture_area.overlaps_area(primary_detection_area):
+	if false and button == gesture_toggle_active_camera_button and gesture_area.overlaps_area(primary_detection_area):
 		print("Now manually toggling active camera")
 		manually_set_camera = true
 		# Get all cameras we have found
@@ -557,7 +557,7 @@ func handle_primary_xr_inputs(button):
 		return
 
 	# If user just pressed activation button, activate special combo buttons
-	if button == dpad_activation_button:
+	if false and button == dpad_activation_button:
 		dpad_toggle_active = true
 		start_toggle_active = true
 		select_toggle_active = true
@@ -576,7 +576,7 @@ func handle_primary_xr_inputs(button):
 # Handle release of buttons on primary controller
 func handle_primary_xr_release(button):
 	#print("primary button released: ", button)
-	if button == dpad_activation_button:
+	if false and button == dpad_activation_button:
 		dpad_toggle_active = false
 		start_toggle_active = false
 		select_toggle_active = false
@@ -602,7 +602,7 @@ func handle_secondary_xr_inputs(button):
 			#xr_pointer.collision_mask = 1048576 #  layer 21 - layer the other two viewports are now on
 
 	# If button is assigned to load action map (temporary,this should be a GUI option) and making gesture, load action map
-	if button == gesture_load_action_map_button and gesture_area.overlaps_area(secondary_detection_area):
+	if false and button == gesture_load_action_map_button and gesture_area.overlaps_area(secondary_detection_area):
 		xr_config_handler.load_action_map_file(xr_config_handler.game_action_map_cfg_path)
 		if use_arm_swing_jump:
 			xr_physical_movement_controller.detect_game_jump_action_events()
@@ -708,8 +708,9 @@ func handle_secondary_xr_float(button, value):
 			event.pressed=false
 		Input.parse_input_event(event)
 
+var seconds_since_last_dpad := 0.0
 # Always process joystick analogue inputs
-func process_joystick_inputs():
+func process_joystick_inputs(_delta: float):
 	# For some reason xr y input values are reversed, so we have to negate those
 	# Likely have to include option to turn off x axis handling for primary if stick turning used
 	
@@ -719,48 +720,52 @@ func process_joystick_inputs():
 	primary_x_axis.axis_value = primary_controller.get_vector2("primary").x
 	primary_y_axis.axis_value = -primary_controller.get_vector2("primary").y
 	
-	# If dpad toggle button is active, then send joystick inputs to dpad instead
-	if dpad_toggle_active:
-		if secondary_x_axis.axis_value < -0.5:
-			dpad_left.pressed = true
-			Input.parse_input_event(dpad_left)
-		else:
-			dpad_left.pressed = false
-			Input.parse_input_event(dpad_left)
-			
-			
-		if secondary_x_axis.axis_value >= 0.5:
-			dpad_right.pressed = true
-			Input.parse_input_event(dpad_right)
-		else:
-			dpad_right.pressed = false
-			Input.parse_input_event(dpad_right)
-			
-			
-		if secondary_y_axis.axis_value < -0.5:
-			dpad_up.pressed = true
-			Input.parse_input_event(dpad_up)
-		else:
-			dpad_up.pressed = false
-			Input.parse_input_event(dpad_up)
-			
-		if secondary_y_axis.axis_value >= 0.5:
-			dpad_down.pressed = true
-			Input.parse_input_event(dpad_down)
-		else:
-			dpad_down.pressed = false
-			Input.parse_input_event(dpad_down)
+	# Send dpad on secondary joystick for IOA menus
+	seconds_since_last_dpad += _delta
+	var cooldown_ready := seconds_since_last_dpad > 0.2
+	if secondary_x_axis.axis_value < -0.5 and cooldown_ready:
+		dpad_left.pressed = true
+		Input.parse_input_event(dpad_left)
+		seconds_since_last_dpad = 0.0
+	else:
+		dpad_left.pressed = false
+		Input.parse_input_event(dpad_left)
+		
+		
+	if secondary_x_axis.axis_value >= 0.5 and cooldown_ready:
+		dpad_right.pressed = true
+		Input.parse_input_event(dpad_right)
+	else:
+		dpad_right.pressed = false
+		Input.parse_input_event(dpad_right)
+		
+		
+	if secondary_y_axis.axis_value < -0.5 and cooldown_ready:
+		dpad_up.pressed = true
+		Input.parse_input_event(dpad_up)
+		seconds_since_last_dpad = 0.0
+	else:
+		dpad_up.pressed = false
+		Input.parse_input_event(dpad_up)
+		
+	if secondary_y_axis.axis_value >= 0.5  and cooldown_ready:
+		dpad_down.pressed = true
+		Input.parse_input_event(dpad_down)
+		seconds_since_last_dpad = 0.0
+	else:
+		dpad_down.pressed = false
+		Input.parse_input_event(dpad_down)
 	
 	# Otherwise process joystick like normal		
-	else:
-		Input.parse_input_event(secondary_x_axis)
-		Input.parse_input_event(secondary_y_axis)
-		if not stick_emulate_mouse_movement:
-			Input.parse_input_event(primary_x_axis)
-			Input.parse_input_event(primary_y_axis)
+
+	Input.parse_input_event(secondary_x_axis)
+	Input.parse_input_event(secondary_y_axis)
+	if not stick_emulate_mouse_movement:
+		Input.parse_input_event(primary_x_axis)
+		Input.parse_input_event(primary_y_axis)
 
 	# Allow emulation of mouse with primary (default: right) stick
-	if stick_emulate_mouse_movement and (abs(primary_x_axis.axis_value) > emulated_mouse_deadzone or abs(primary_y_axis.axis_value) > emulated_mouse_deadzone):
+	if false and stick_emulate_mouse_movement and (abs(primary_x_axis.axis_value) > emulated_mouse_deadzone or abs(primary_y_axis.axis_value) > emulated_mouse_deadzone):
 		var mouse_move = InputEventMouseMotion.new()
 		mouse_move.relative = Vector2(primary_x_axis.axis_value, primary_y_axis.axis_value) * emulated_mouse_sensitivity_multiplier
 		Input.parse_input_event(mouse_move)
@@ -1353,7 +1358,7 @@ func find_and_set_active_camera_3d():
 		# Set last camera as current camera to avoid running through this special loop every iteration
 		if available_cameras != null and available_cameras.size() >= 1:
 			current_camera = available_cameras[-1]
-	
+	set
 	# If using roomscale 3D cursor, make the cursor visible on the active camera (someday for performance should condense the get_tree().get_nodes_in_group("possible_xr_cameras") to only call it once and then use that variable for all the various checks		
 	if use_roomscale_3d_cursor == true or use_long_range_3d_cursor == true:
 		# If there's only one camera, assume it's our active camera and add the 3D cursor
