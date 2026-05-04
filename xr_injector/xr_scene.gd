@@ -678,6 +678,22 @@ func handle_secondary_xr_release(button):
 		event.pressed = false
 		Input.parse_input_event(event)
 
+# stop trigger bouncing
+func hysteresis(val: float, state: bool) -> bool:
+	const mod_lower := 0.2
+	const mod_upper := 0.3
+	if state:
+		# currently pressed - check for release
+		if val < mod_lower:
+			return false
+		return true
+	else:
+		# currently released - check for press
+		if val > mod_upper:
+			return true
+		return false
+
+var primary_trigger_state = false
 # Handle analogue button presses on VR controller assigned as primary
 func handle_primary_xr_float(button, value):
 	# Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
@@ -686,10 +702,16 @@ func handle_primary_xr_float(button, value):
 	#print(button)
 	#print(value)
 	if button == "trigger":
-		var event = InputEventJoypadMotion.new()
-		event.axis = JOY_AXIS_TRIGGER_RIGHT
-		event.axis_value = value
-		Input.parse_input_event(event)
+		var newstate = hysteresis(value, primary_trigger_state)
+		if newstate != primary_trigger_state:
+			primary_trigger_state = newstate
+			var event = InputEventJoypadMotion.new()
+			event.axis = JOY_AXIS_TRIGGER_RIGHT
+			if newstate:
+				event.axis_value = 1.0
+			else:
+				event.axis_value = 0.0
+			Input.parse_input_event(event)
 		
 	if button == "grip":
 		var event = InputEventJoypadButton.new()
@@ -702,6 +724,7 @@ func handle_primary_xr_float(button, value):
 			event.pressed=false
 		Input.parse_input_event(event)
 
+var secondary_trigger_state = false
 # Handle analogue button presses on VR Controller assigned as secondary	 	
 func handle_secondary_xr_float(button, value):
 	# Block other inputs if ugvr menu is up to prevent game actions while using ugvr menu
@@ -710,10 +733,17 @@ func handle_secondary_xr_float(button, value):
 	#print(button)
 	#print(value)
 	if button == "trigger":
-		var event = InputEventJoypadMotion.new()
-		event.axis = JOY_AXIS_TRIGGER_LEFT
-		event.axis_value = value
-		Input.parse_input_event(event)
+		var newstate = hysteresis(value, secondary_trigger_state)
+		if newstate != secondary_trigger_state:
+			secondary_trigger_state = newstate
+			var event = InputEventJoypadMotion.new()
+			event.axis = JOY_AXIS_TRIGGER_LEFT
+			if newstate:
+				event.axis_value = 1.0
+			else:
+				event.axis_value = 0.0
+			event.axis_value = value
+			Input.parse_input_event(event)
 		
 	if button == "grip":
 		var event = InputEventJoypadButton.new()

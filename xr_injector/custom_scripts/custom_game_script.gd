@@ -108,7 +108,7 @@ func setup_mod():
 	var ropevisualmod := load("res://xr_injector/modded_scripts/climber_rope_visual_mod.gd")
 	var ropevisual = climber.Rope._rope_visual
 	ropevisual.set_script(ropevisualmod)
-	ropevisual.scale_radius = xr_scene.xr_world_scale
+	ropevisual.scale_radius = 0.5#xr_scene.xr_world_scale
 	ropevisual.setup(climber.Rope)
 	
 ## Built in UGVR Convenience Functions for Your Potential Use
