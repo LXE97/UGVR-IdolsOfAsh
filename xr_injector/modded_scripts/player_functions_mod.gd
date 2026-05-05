@@ -1,4 +1,4 @@
-class_name PlayerFunctions_mod extends Node
+extends Node
 
 const inputAction_Forward: = "ioa_fp_movement_forward"
 const inputAction_Backward: = "ioa_fp_movement_back"

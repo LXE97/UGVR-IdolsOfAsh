@@ -1,4 +1,4 @@
-class_name ClimberState_Attached_mod extends ClimberState_Attached
+extends ClimberState_Attached
 
 var _movement_device : Node
 
@@ -15,14 +15,14 @@ func copy_state(target : ClimberState_Attached):
 	_raycast_params=target._raycast_params
 
 func _physics_process(delta: float, input_vector: Vector3):
-	var inputGlobalMovementVector = PlayerFunctions_mod.GetGlobalMovementVector(_movement_device)
+	var inputGlobalMovementVector = GetGlobalMovementVector(_movement_device)
 	
 	var max_speed = _climber.WalkSpeed * _climber.WalkSpeedMultiplier
 	if ignore_sprint:
 		max_speed *= 2.0
 	
 	# scale with curve
-	inputGlobalMovementVector *= PlayerFunctions_mod.CurveInput(0.0, max_speed, inputGlobalMovementVector.length(), deadzone)
+	inputGlobalMovementVector *= CurveInput(0.0, max_speed, inputGlobalMovementVector.length(), deadzone)
 	
 	# sprinting controls
 	if !ignore_sprint:
@@ -34,3 +34,39 @@ func _physics_process(delta: float, input_vector: Vector3):
 		
 		
 	super(delta, inputGlobalMovementVector)
+
+func GetGlobalMovementVector(device: Node3D) -> Vector3:
+	if !is_instance_valid(device):
+		return Vector3.ZERO
+
+	var input := Vector2(
+		Input.get_axis(PlayerFunctions.inputAction_Left, PlayerFunctions.inputAction_Right),
+		Input.get_axis(PlayerFunctions.inputAction_Forward, PlayerFunctions.inputAction_Backward)
+	)
+
+	if input.length_squared() <= 0.01:
+		return Vector3.ZERO
+
+	var forward := device.global_transform.basis.z
+	forward.y = 0.0
+
+	if forward.length_squared() <= 0.0001:
+		return Vector3.ZERO
+
+	forward = forward.normalized()
+
+	var right := Vector3.UP.cross(forward).normalized()
+
+	var movement_vector := forward * input.y + right * input.x
+	return movement_vector.limit_length(1.0)
+	
+func CurveInput(min, max, input, deadzone) -> float:
+	if input <= deadzone:
+		return min
+
+	#cubic scaling
+	#input = input*input*input
+	input = remap(input, deadzone, 1.0, min, max)
+	input = clamp(input, min, max)
+
+	return input

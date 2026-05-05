@@ -1,5 +1,12 @@
 extends Node
 
+const ClimberState_Attached_mod_script = preload("res://xr_injector/modded_scripts/climber_state_attached_mod.gd")
+const ClimberState_Throw_mod_script = preload("res://xr_injector/modded_scripts/climber_state_throw_mod.gd")
+const ClimberState_Default_mod_script = preload("res://xr_injector/modded_scripts/climber_state_default_mod.gd")
+const ClimberState_Attached_script = preload("res://scripts/climber_state_attached.gd")
+const ClimberState_Throw_script = preload("res://scripts/climber_state_throw.gd")
+const ClimberState_Default_script = preload("res://scripts/climber_state_default.gd")
+
 @export var hand_wall_slowdown := 0.05
 
 # Convenience XR Scene reference (the parent node of all of UGVR), do not modify, will be set in xr_scene.gd
@@ -22,7 +29,10 @@ var mod_camera_parent : Node3D = null
 var setup_request = true
 var is_setup = false
 
+
+
 func _ready():
+	
 	pass
 	
 func _on_scene_changed(new_scene: Node) -> void:
@@ -61,22 +71,22 @@ func _process(delta):
 	if stop_process_flag or not xr_scene:
 		return
 	
-	if xr_scene.use_palm_healthbar:	
-		if xr_scene.get_parent().get_parent() is CharacterBody3D:
-			update_palm_hud_fade()
-	
-	if setup_request:
+	if setup_request and Engine.get_process_frames() % 90 == 0:
 		setup_mod()
 		
 	# Mod player state to enable analogue joystick values.
 	if is_setup:
-		var s = climber.activeClimberState
-		if s is ClimberState_Attached and not (s is ClimberState_Attached_mod):
-			replace_state(climber, s, ClimberState_Attached_mod)
-		elif s is ClimberState_Throw and not (s is ClimberState_Throw_mod):
-			replace_state(climber, s, ClimberState_Throw_mod)
+		var s = climber.activeClimberState.get_script()
+		if s == ClimberState_Attached_script: 
+			replace_state(climber, climber.activeClimberState, ClimberState_Attached_mod_script)
+		elif s == ClimberState_Throw_script:
+			replace_state(climber, climber.activeClimberState, ClimberState_Throw_mod_script)
 		#elif s is ClimberState_Default and not (s is ClimberState_Default_mod):
 		#	replace_state(climber, s, ClimberState_Default_mod)
+		
+		if xr_scene.use_palm_healthbar:	
+			if xr_scene.get_parent().get_parent() is CharacterBody3D:
+				update_palm_hud_fade()
 	
 var head_collider_offset := Vector3(0.0, 0.07, 0.0)
 func _physics_process(delta):
@@ -106,7 +116,7 @@ func setup_mod():
 		_:
 			mod_camera_parent = xr_scene.xr_camera_3d
 	
-	var new_default_state = ClimberState_Default_mod.new()
+	var new_default_state = ClimberState_Default_mod_script.new()
 	new_default_state.copy_state(climber.defaultClimberState)
 	new_default_state._movement_device = mod_camera_parent
 	new_default_state.ignore_sprint = xr_scene.ignore_sprint
