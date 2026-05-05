@@ -90,9 +90,10 @@ func setup_mod():
 			if child is SubViewport or child is MeshInstance3D:
 				child.queue_free()
 				
-				
-		create_subviewport(xr_scene.xr_left_hand.get_node("HandMesh"))
-		
+		var ui_parent = xr_scene.xr_left_hand.get_node("HandMesh")
+		if ui_parent == null:
+			ui_parent = xr_scene.xr_left_hand.get_node("Hand_Nails_low_L")
+		create_subviewport(ui_parent)
 		
 		steal_healthbar()
 	
