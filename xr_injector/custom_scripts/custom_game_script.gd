@@ -1,5 +1,7 @@
 extends Node
 
+@export var hand_wall_slowdown := 0.05
+
 # Convenience XR Scene reference (the parent node of all of UGVR), do not modify, will be set in xr_scene.gd
 var xr_scene : Node3D = null
 # Convenience reference to the node at the top of the scene tree in any game, allows finding or getting other nodes in game scene tree
@@ -12,11 +14,14 @@ var prev_scene : Node = null
 
 # main reference for changing player logic
 var climber : Node = null
+var climber_head_collision : Node = null
+
+#flag for initializing mod because we need to wait for the xr_Scene to settle
+var setup_request = true
 
 func _ready():
 	pass
 	
-
 func _on_scene_changed(new_scene: Node) -> void:
 	if new_scene:
 		print("scene changed to: ", new_scene.scene_file_path)
@@ -37,14 +42,9 @@ func _on_scene_changed(new_scene: Node) -> void:
 				menu.queue_free()
 				return
 
-		setup_mod()
+		setup_request = true
 	else:
 		print("scene changed to null")
-
-# Called only once after xr scene and all convenience variables are set, insert any code you want to run then here
-# Note that you can now access any of the xr scene variables directly at this point, example: xr_scene.xr_pointer.enabled=false
-func _on_xr_setup_run_once():
-	xr_scene.xr_pointer.set_enabled(false)
 
 func _process(delta):
 	var scene := get_tree().current_scene
@@ -57,26 +57,68 @@ func _process(delta):
 	if stop_process_flag or not xr_scene:
 		return
 	
-	# Run single use function the first time after all convenience variables are set up
-	if not on_xr_setup_already_run:
-		on_xr_setup_already_run = true
-		_on_xr_setup_run_once()
+	if xr_scene.use_palm_healthbar:	
+		if xr_scene.get_parent().get_parent() is CharacterBody3D:
+			update_palm_hud_fade()
 	
-	# Note that you can now access any of the xr scene variables directly, example: xr_scene.xr_pointer.enabled=false
-
+	if setup_request:
+		setup_mod()
+	
+var head_collider_offset := Vector3(0.0, 0.07, 0.0)
 func _physics_process(delta):
 	# Don't try to run code if xr_scene not set yet
 	if not xr_scene:
 		return
+		
+	if climber_head_collision != null and is_instance_valid(climber_head_collision):
+		climber_head_collision.global_position = xr_scene.xr_camera_3d.global_position + head_collider_offset * xr_scene.xr_world_scale
 
 func setup_mod():
 	print("mod setup")
 	
 	climber = find_first_node_by_name("Climber")
-	if climber == null:
+	if climber == null or xr_scene.xr_camera_3d == null or !is_instance_valid(xr_scene.xr_camera_3d):
 		print("mod setup fail")
 		return
+	setup_request = false
+	
+	modify_ui_style()
+	
+	if xr_scene.use_palm_healthbar:
+		#check for existing UI
+		for child in xr_scene.xr_left_hand.get_children():
+			if child is SubViewport or child is MeshInstance3D:
+				child.queue_free()
+				
+		var ui_parent = xr_scene.xr_left_hand.get_node("HandMesh")
+		if ui_parent == null:
+			ui_parent = xr_scene.xr_left_hand.get_node("Hand_Nails_low_L")
+		create_subviewport(ui_parent)
 		
+		steal_healthbar()
+	
+	if xr_scene.use_physics_hands:
+		xr_scene.xr_right_hand.blocked.connect(on_hand_blocked)
+		xr_scene.xr_right_hand.unblocked.connect(on_hand_unblocked)
+		xr_scene.xr_left_hand.blocked.connect(on_hand_blocked)
+		xr_scene.xr_left_hand.unblocked.connect(on_hand_unblocked)
+		
+	# get head collider transform or make one
+	if xr_scene.use_head_collider:
+		if climber_head_collision == null or !is_instance_valid(climber_head_collision):
+			for child in climber.get_children():
+				if child is CollisionShape3D:
+					if child.shape is SphereShape3D:
+						climber_head_collision = child
+						climber_head_collision.shape.radius = 0.25 * xr_scene.xr_world_scale
+			if climber_head_collision == null:
+				climber_head_collision = CollisionShape3D.new()
+				var sphere := SphereShape3D.new()
+				sphere.radius = 0.25 * xr_scene.xr_world_scale
+				climber_head_collision.shape = sphere
+				climber.add_child(climber_head_collision)
+				
+				
 	# Script overrides
 	var playercameramod := load("res://xr_injector/modded_scripts/player_camera_mod.gd")
 	climber.PlayerCamera.set_script(playercameramod)
@@ -84,7 +126,11 @@ func setup_mod():
 	var edgemod := load("res://xr_injector/modded_scripts/climbing_edge_player_mod.gd")
 	climber.Edge.set_script(edgemod)
 	climber.Edge.setup(climber)
-	climber.Edge.set_root(xr_scene.xr_right_hand)
+	climber.Edge.set_root(xr_scene.xr_right_hand, true)
+	climber.Edge.scale = xr_scene.xr_world_scale * 0.85
+	var light := climber.get_node_or_null("OmniLight3D") as OmniLight3D
+	if light != null:
+		light.light_energy *= xr_scene.player_light_multiplier
 
 	var clawmod := load("res://xr_injector/modded_scripts/climber_claw_mod.gd")
 	var _claw = climber.Rope._claw
@@ -104,13 +150,139 @@ func setup_mod():
 	_claw._edge = _edge
 	#TODO: change on keypress
 	_claw.thrower_node=xr_scene.xr_right_hand
+	_claw.default_light_intensity *= xr_scene.player_light_multiplier
+	_claw.omni_light.light_energy *= xr_scene.player_light_multiplier
+	_claw._ready()
 
 	var ropevisualmod := load("res://xr_injector/modded_scripts/climber_rope_visual_mod.gd")
 	var ropevisual = climber.Rope._rope_visual
 	ropevisual.set_script(ropevisualmod)
-	ropevisual.scale_radius = 0.5#xr_scene.xr_world_scale
+	ropevisual.scale_radius = xr_scene.xr_world_scale * 0.85
 	ropevisual.setup(climber.Rope)
 	
+	# set hands material to normal depth test
+	var left = xr_scene.xr_left_hand.get_node_or_null("HandMesh/Armature/Skeleton3D/mesh_Hand_Nails_low_L")
+	if left == null:
+		left = xr_scene.xr_left_hand.get_node_or_null("Hand_Nails_low_L/Armature/Skeleton3D/mesh_Hand_Nails_low_L")
+	var right = xr_scene.xr_right_hand.get_node_or_null("HandMesh/Armature/Skeleton3D/mesh_Hand_Nails_low_R")
+	if right == null:
+		right = xr_scene.xr_right_hand.get_node_or_null("Hand_Nails_low_R/Armature/Skeleton3D/mesh_Hand_Nails_low_R")
+	
+	left.get_active_material(0).no_depth_test = false
+	
+func on_hand_blocked():
+	climber.Rope._settings.airVelocityDrag += xr_scene.physics_hand_drag
+	pass
+	
+func on_hand_unblocked():
+	climber.Rope._settings.airVelocityDrag -= xr_scene.physics_hand_drag
+	if climber.Rope._settings.airVelocityDrag < 0.001:
+		climber.Rope._settings.airVelocityDrag = 0.001
+	pass
+	
+func modify_ui_style():
+	var healthbar = climber.get_node("Hud/HealthbarRoot/Health")
+	if healthbar != null:
+		var style := healthbar.get_theme_stylebox("background").duplicate() as StyleBoxTexture
+		style.modulate_color = Color.BLACK
+		healthbar.add_theme_stylebox_override("background", style)
+	var slack = climber.get_node("Hud/SlackCircle")
+	if slack != null:
+		slack.material.set_shader_parameter("un_fill_color", Color.BLACK)
+	
+var mod_viewport : SubViewport
+var mod_viewport_control : Control
+var viewportscale = 0.7
+func create_subviewport(parent_3d: Node3D) -> void:
+	mod_viewport = SubViewport.new()
+	mod_viewport.size = Vector2i(128, 128)
+	mod_viewport.transparent_bg = true
+	mod_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+
+	mod_viewport_control = Control.new()
+	mod_viewport_control.size = Vector2(128, 128)
+
+	mod_viewport.add_child(mod_viewport_control)
+
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = QuadMesh.new()
+	mesh.mesh.size = Vector2(0.1, 0.1)
+	mesh.scale = Vector3(viewportscale,viewportscale,viewportscale)
+	mesh.name = "floatingbar"
+	
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = mod_viewport.get_texture()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+	mesh.material_override = mat
+	mesh.position = Vector3(0.033, -0.003, -0.045) * xr_scene.xr_world_scale
+	mesh.rotation_degrees = Vector3(0, 90, -90)
+
+	parent_3d.add_child(mod_viewport)
+	parent_3d.add_child(mesh)
+
+func steal_healthbar() -> void:
+	var hud = climber.get_node_or_null("Hud")
+
+	if hud == null or mod_viewport_control == null:
+		return
+
+	var hbar = hud.get_node_or_null("HealthbarRoot")
+	if hbar == null:
+		return
+		
+	var slack := hud.get_node_or_null("SlackCircle") as TextureRect
+	if slack == null:
+		return
+
+	hud.remove_child(hbar)
+	mod_viewport_control.add_child(hbar)
+	hbar.anchor_left = 0.5
+	hbar.anchor_right = 0.5
+	hbar.anchor_top = 0.5
+	hbar.anchor_bottom = 0.5
+
+	hbar.offset_left = -61
+	hbar.offset_top = -5
+	hbar.offset_right = 61
+	hbar.offset_bottom = 5
+	
+	
+	hud.remove_child(slack)
+	mod_viewport_control.add_child(slack)
+	slack.anchor_left = 0.5
+	slack.anchor_right = 0.5
+	slack.anchor_top = 0.678
+	slack.anchor_bottom = 0.678
+
+	slack.offset_left = -19
+	slack.offset_top = -19
+	slack.offset_right = 20
+	slack.offset_bottom = 20
+
+	#hbar.position = Vector2(40, 20)
+	#slack.position = Vector2(0, 0)
+
+func update_palm_hud_fade() -> void:
+	for child in xr_scene.xr_left_hand.get_children():
+		if child is MeshInstance3D:            
+			var to_camera = (xr_scene.xr_camera_3d.global_position - xr_scene.xr_left_hand.global_position).normalized()
+
+			var palm_normal = xr_scene.xr_left_hand.global_basis.x.normalized()
+
+			var facing = palm_normal.dot(to_camera)
+			var target_alpha = clamp(inverse_lerp(0.6, 0.9, facing), 0.0, 1.0)
+
+			var mat := child.material_override as StandardMaterial3D
+			if mat == null:
+				return
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mat.albedo_color.a = target_alpha
+			return
+
+
 ## Built in UGVR Convenience Functions for Your Potential Use
 # But remember you have full access to all Godot GDSCript scripting for Godot 4 - just be mindful of game's Godot version.
 # To be on the safe side, aim to use Godot 4.2 documentation when finding potential methods, properties and signals
@@ -194,3 +366,4 @@ func show_node(node : Node) -> void:
 func set_xr_scene(new_xr_scene) -> void:
 	xr_scene = new_xr_scene
 	scene_root = get_node("/root")
+	xr_scene.xr_pointer.set_enabled(false)

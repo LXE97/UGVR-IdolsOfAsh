@@ -235,6 +235,17 @@ var jog_triggers_sprint : bool = false
 var show_xr_hands : bool = true
 var xr_hand_material_choice : int = 0
 
+# LXE97
+var terrain_collision_fade : bool = true
+var hook_force_multiplier : float = 1.0
+var use_palm_healthbar : bool = true
+var palm_healthbar_scale : float = 0.7
+var apply_player_momentum : bool = true
+var use_head_collider : bool = true
+var use_physics_hands : bool = true
+var physics_hand_drag : float = 0.05
+var player_light_multiplier : float = 0.8
+
 # CAMERA Config Options in GAME options
 
 var xr_world_scale : float = 1.0
@@ -343,6 +354,17 @@ func load_game_options_cfg_file(file_path: String) -> bool:
 		printerr("Error loading game options config file! Error: ", err)
 		return false
 
+	# LXE97
+	terrain_collision_fade = game_options_cfg_file.get_value("ROOMSCALE_OPTIONS", "terrain_collision_fade", terrain_collision_fade)
+	hook_force_multiplier = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "hook_force_multiplier", hook_force_multiplier)
+	apply_player_momentum = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "apply_player_momentum", apply_player_momentum)
+	use_palm_healthbar = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "use_palm_healthbar", use_palm_healthbar)
+	palm_healthbar_scale = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "palm_healthbar_scale", palm_healthbar_scale)
+	use_head_collider = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "use_head_collider", use_head_collider)
+	use_physics_hands = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "use_physics_hands", use_physics_hands)
+	physics_hand_drag = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "physics_hand_drag", physics_hand_drag)
+	player_light_multiplier = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "player_light_multiplier", player_light_multiplier)
+
 	# Load camera options
 	xr_world_scale = game_options_cfg_file.get_value("CAMERA_OPTIONS", "xr_world_scale", xr_world_scale)
 	camera_offset = game_options_cfg_file.get_value("CAMERA_OPTIONS", "camera_offset", camera_offset)
@@ -394,6 +416,17 @@ func save_game_options_cfg_file(file_path):
 		printerr("Error saving game options config file!  Error: ", err)
 		return false
 
+	
+	# LXE97
+	game_options_cfg_file.set_value("ROOMSCALE_OPTIONS", "terrain_collision_fade", terrain_collision_fade)
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "hook_force_multiplier", hook_force_multiplier)
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "apply_player_momentum", apply_player_momentum) 
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "use_palm_healthbar", use_palm_healthbar) 
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "palm_healthbar_scale", palm_healthbar_scale) 
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "use_head_collider", use_head_collider) 
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "use_physics_hands", use_physics_hands)
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "physics_hand_drag", physics_hand_drag) 
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "player_light_multiplier", player_light_multiplier) 
 	
 	# Save camera options
 	

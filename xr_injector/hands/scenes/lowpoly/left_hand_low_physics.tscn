@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cronmxb7a8qx8"]
 
 [ext_resource type="PackedScene" uid="uid://c4nba0qpi0uls" path="res://xr_injector/hands/model/Hand_Nails_low_L.gltf" id="1"]
-[ext_resource type="Script" uid="uid://dmbuit2aa50ij" path="res://xr_injector/hands/hand_physics_mod.gd" id="1_o4q1o"]
+[ext_resource type="Script" uid="uid://px4nkbfib6k0" path="res://xr_injector/hands/hand_physics_mod.gd" id="1_o4q1o"]
 [ext_resource type="PackedScene" uid="uid://the6y7swe6j0" path="res://xr_injector/hands/animations/left/AnimationPlayer.tscn" id="2"]
 [ext_resource type="Resource" uid="uid://dertgu7k8alls" path="res://xr_injector/hands/poses/pose_default_left.tres" id="3_ry7qg"]
 [ext_resource type="Material" uid="uid://dy6nhifvvmm73" path="res://xr_injector/hands/materials/caucasian_hand.tres" id="4"]

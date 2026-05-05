@@ -1,7 +1,6 @@
 @tool
 extends CharacterBody3D
 
-
 ## XR Tools Hand-physics Script
 ##
 ## This script manages a godot-xr-tools hand. It animates the hand blending
@@ -81,6 +80,11 @@ var _target_overrides := []
 # Current target (controller or override)
 var _target : Node3D
 
+var is_blocked := false
+signal blocked
+signal unblocked
+
+var device_velocity : float = 0.0
 
 ## Pose-override class
 class PoseOverride:
@@ -164,6 +168,9 @@ func resize(factor: float):
 	shape.size *= factor
 	$CollisionShape3D.position *= factor
 
+var last_device_pos := Vector3.ZERO
+var blocking_normal := Vector3.ZERO
+
 ## This method checks for world-scale changes and scales itself causing the
 ## hand mesh and skeleton to scale appropriately. It then reads the grip and
 ## trigger action values to animate the hand.
@@ -182,6 +189,9 @@ func _physics_process(delta: float) -> void:
 	if _controller:
 		var grip: float = _controller.get_float(grip_action)
 		var trigger: float = _controller.get_float(trigger_action)
+		
+		device_velocity = (_controller.transform.origin - last_device_pos).length() / delta
+		last_device_pos = _controller.transform.origin
 
 		if _force_grip >= 0.0:
 			grip = _force_grip
@@ -227,6 +237,16 @@ func _physics_process(delta: float) -> void:
 	if get_slide_collision_count() == 0:
 		global_position = target_pos
 		smoothing = free_smoothing
+		if is_blocked:
+			is_blocked = false
+			unblocked.emit()
+			
+	# update blocked state
+	else:
+		blocking_normal = get_slide_collision(0).get_normal()
+		if !is_blocked:
+			is_blocked = true
+			blocked.emit()
 
 	# Rotation smoothing
 	var rot_t := 1.0 - exp(-smoothing * delta)

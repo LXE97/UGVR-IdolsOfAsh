@@ -37,7 +37,6 @@ extends Node3D
 var show_xr_hands : bool = true
 var xr_hand_material = preload("res://xr_injector/hands/materials/labglove_transparent.tres")
 var xr_hand_material_choice : int = 0
-var use_physics_hands : bool = true
 
 # Internal variable for custom game script
 var custom_game_script : Node
@@ -229,6 +228,17 @@ var use_beton_gun_finding_code : bool = false
 var use_tar_object_picker_finding_code : bool = false
 var use_CRUEL_gun_finding_code : bool = false
 var currentRID = null
+
+# LXE97
+var terrain_collision_fade : bool = true
+var hook_force_multiplier : float = 1.0
+var use_palm_healthbar : bool = true
+var palm_healthbar_scale : float = 0.7
+var apply_player_momentum : bool = true
+var use_head_collider : bool = true
+var use_physics_hands : bool = true
+var physics_hand_drag : float = 0.05
+var player_light_multiplier : float = 0.8
 
 func _ready() -> void:
 	set_process(false)
@@ -514,6 +524,7 @@ func map_xr_controllers_to_action_map() -> bool:
 	return true
 
 var original_world_scale := xr_world_scale
+var original_roomscale_height_adjustment := 1.0
 # Handle button presses on VR controller assigned as primary
 func handle_primary_xr_inputs(button):
 	#print("primary contoller button pressed: ", button)
@@ -525,24 +536,28 @@ func handle_primary_xr_inputs(button):
 		# If we're using a special gesture, don't trigger the underlying game action
 		return
 	
-	# Scale world to player height
+	# Set  player height
 	if button == gesture_set_user_height_button and gesture_area.overlaps_area(primary_detection_area):
-		if abs(original_world_scale - xr_world_scale) > 0.01:
-			print("Resetting world scale to ", original_world_scale)
-			xr_world_scale = original_world_scale
+		if abs(original_roomscale_height_adjustment - roomscale_height_adjustment) > 0.005:
+			print("Resetting player height to ", original_roomscale_height_adjustment)
+			roomscale_height_adjustment = original_roomscale_height_adjustment
+			
 			
 		else:
-			var game_character_height := current_camera.transform.origin.y
+			var game_character_height := current_camera.global_position.y
 			print("Game character height: ", game_character_height)
-			var real_height := xr_camera_3d.transform.origin.y
+			var real_height := xr_camera_3d.global_position.y - roomscale_height_adjustment
 			print("Player VR height: ", real_height)
-			xr_world_scale = game_character_height / real_height
-			print("Setting VR scale to ", xr_world_scale)
 			
-		xr_origin_3d.world_scale = xr_world_scale
-		set_worldscale_for_xr_nodes(xr_world_scale)
-		custom_game_script.climber.Rope._rope_visual.scale_radius = xr_world_scale
-		custom_game_script.climber.Rope._rope_visual.setup(custom_game_script.climber.Rope)
+			roomscale_height_adjustment = game_character_height - real_height
+			print("Setting height offset to ", roomscale_height_adjustment)
+		
+		xr_roomscale_controller.roomscale_height_adjustment = roomscale_height_adjustment
+		#xr_origin_3d.world_scale = xr_world_scale
+		#set_worldscale_for_xr_nodes(xr_world_scale)
+		#custom_game_script.climber.Rope._rope_visual.scale_radius = xr_world_scale
+		#custom_game_script.climber.Rope._rope_visual.setup(custom_game_script.climber.Rope)
+		#set_xr_hands()
 			
 		#print("User height: ", user_height)
 		# this doesn't do anything to the camera
@@ -772,35 +787,40 @@ func process_joystick_inputs(_delta: float):
 	# Send dpad on secondary joystick for IOA menus
 	seconds_since_last_dpad += _delta
 	var cooldown_ready := seconds_since_last_dpad > 0.2
-	if secondary_x_axis.axis_value < -0.5 and cooldown_ready:
-		dpad_left.pressed = true
-		Input.parse_input_event(dpad_left)
-		seconds_since_last_dpad = 0.0
+	if secondary_x_axis.axis_value < -0.5:
+		if cooldown_ready:
+			dpad_left.pressed = true
+			Input.parse_input_event(dpad_left)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_left.pressed = false
 		Input.parse_input_event(dpad_left)
 		
 		
-	if secondary_x_axis.axis_value >= 0.5 and cooldown_ready:
-		dpad_right.pressed = true
-		Input.parse_input_event(dpad_right)
+	if secondary_x_axis.axis_value >= 0.5:
+		if cooldown_ready:
+			dpad_right.pressed = true
+			Input.parse_input_event(dpad_right)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_right.pressed = false
 		Input.parse_input_event(dpad_right)
 		
 		
-	if secondary_y_axis.axis_value < -0.5 and cooldown_ready:
-		dpad_up.pressed = true
-		Input.parse_input_event(dpad_up)
-		seconds_since_last_dpad = 0.0
+	if secondary_y_axis.axis_value < -0.5:
+		if cooldown_ready:
+			dpad_up.pressed = true
+			Input.parse_input_event(dpad_up)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_up.pressed = false
 		Input.parse_input_event(dpad_up)
 		
-	if secondary_y_axis.axis_value >= 0.5  and cooldown_ready:
-		dpad_down.pressed = true
-		Input.parse_input_event(dpad_down)
-		seconds_since_last_dpad = 0.0
+	if secondary_y_axis.axis_value >= 0.5:
+		if cooldown_ready:
+			dpad_down.pressed = true
+			Input.parse_input_event(dpad_down)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_down.pressed = false
 		Input.parse_input_event(dpad_down)
@@ -1290,6 +1310,7 @@ func instantiate_hand(isLeft : bool):
 		else:
 			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn").instantiate()
 		xr_left_controller.add_child(xr_left_hand)
+		xr_left_hand.name = "LeftHand"
 	else:
 		xr_right_hand = null
 		if use_physics_hands:
@@ -1298,14 +1319,17 @@ func instantiate_hand(isLeft : bool):
 		else:
 			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn").instantiate()
 		xr_right_controller.add_child(xr_right_hand)
+		xr_right_hand.name = "RightHand"
 
 # Function to set whether XR Hands are visible and the material
 func set_xr_hands():
 	# LXE97: reload them every time to account for use_physics_hand option
 	if is_instance_valid(xr_right_hand):
 		xr_right_hand.queue_free()
+		xr_right_controller.remove_child(xr_right_hand)
 	if  is_instance_valid(xr_left_hand):
 		xr_left_hand.queue_free()
+		xr_left_controller.remove_child(xr_left_hand)
 	instantiate_hand(true)
 	instantiate_hand(false)
 	print("hands reloaded")
@@ -1575,6 +1599,17 @@ func find_and_set_player_characterbody3d_or_null():
 
 # Function to pull current state of config handler game options variables to set same xr scene variables based on user config
 func set_xr_game_options():
+	# LXE97
+	terrain_collision_fade = xr_config_handler.terrain_collision_fade
+	hook_force_multiplier = xr_config_handler.hook_force_multiplier
+	apply_player_momentum = xr_config_handler.apply_player_momentum
+	use_palm_healthbar = xr_config_handler.use_palm_healthbar
+	palm_healthbar_scale = xr_config_handler.palm_healthbar_scale
+	use_head_collider = xr_config_handler.use_head_collider
+	use_physics_hands = xr_config_handler.use_physics_hands
+	physics_hand_drag = xr_config_handler.physics_hand_drag
+	player_light_multiplier = xr_config_handler.player_light_multiplier
+
 	# Load camera options
 	xr_world_scale = xr_config_handler.xr_world_scale
 	camera_offset = xr_config_handler.camera_offset
@@ -1590,8 +1625,9 @@ func set_xr_game_options():
 	secondary_viewport_offset = xr_config_handler.secondary_viewport_offset
 
 	# Load roomscale options
-	use_roomscale = xr_config_handler.use_roomscale
+	use_roomscale = true
 	roomscale_height_adjustment = xr_config_handler.roomscale_height_adjustment
+	original_roomscale_height_adjustment = roomscale_height_adjustment
 	attempt_to_use_camera_to_set_roomscale_height = xr_config_handler.attempt_to_use_camera_to_set_roomscale_height
 	reverse_roomscale_direction = xr_config_handler.reverse_roomscale_direction
 	use_roomscale_controller_directed_movement = xr_config_handler.use_roomscale_controller_directed_movement

@@ -124,7 +124,8 @@ func _ready() -> void:
 	# processing.
 	if not Engine.is_editor_hint():
 		top_level = true
-		process_physics_priority = -70
+		#LXE97: previous value of -70 caused hands to lag behind controllers significantly
+		process_physics_priority = 70
 
 	# Find our controller
 	_controller = XRHelpers.find_xr_ancestor(self, "*", "XRController3D")
