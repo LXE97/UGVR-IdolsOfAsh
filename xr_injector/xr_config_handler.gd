@@ -245,6 +245,7 @@ var use_head_collider : bool = true
 var use_physics_hands : bool = true
 var physics_hand_drag : float = 0.05
 var player_light_multiplier : float = 0.8
+var movement_direction_device : int = 0
 
 # CAMERA Config Options in GAME options
 
@@ -364,6 +365,7 @@ func load_game_options_cfg_file(file_path: String) -> bool:
 	use_physics_hands = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "use_physics_hands", use_physics_hands)
 	physics_hand_drag = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "physics_hand_drag", physics_hand_drag)
 	player_light_multiplier = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "player_light_multiplier", player_light_multiplier)
+	movement_direction_device = game_options_cfg_file.get_value("ROOMSCALE_OPTIONS", "movement_direction_device", movement_direction_device)
 
 	# Load camera options
 	xr_world_scale = game_options_cfg_file.get_value("CAMERA_OPTIONS", "xr_world_scale", xr_world_scale)
@@ -427,6 +429,7 @@ func save_game_options_cfg_file(file_path):
 	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "use_physics_hands", use_physics_hands)
 	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "physics_hand_drag", physics_hand_drag) 
 	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "player_light_multiplier", player_light_multiplier) 
+	game_options_cfg_file.set_value("ROOMSCALE_OPTIONS", "movement_direction_device", movement_direction_device) 
 	
 	# Save camera options
 	

@@ -239,6 +239,7 @@ var use_head_collider : bool = true
 var use_physics_hands : bool = true
 var physics_hand_drag : float = 0.05
 var player_light_multiplier : float = 0.8
+var movement_direction_device : int = 0
 
 func _ready() -> void:
 	set_process(false)
@@ -250,14 +251,14 @@ func _ready() -> void:
 	xr_start.connect("xr_started", Callable(self, "_on_xr_started"))
 	xr_autosave_timer.connect("timeout", Callable(self, "_on_xr_autosave_timer_timeout"))
 	xr_physical_movement_controller.connect("tree_exiting", Callable(self, "_on_xr_origin_exiting_tree"))
-	xr_radial_menu.connect("entry_selected", Callable(self, "_on_xr_radial_menu_entry_selected"))
+	#xr_radial_menu.connect("entry_selected", Callable(self, "_on_xr_radial_menu_entry_selected"))
 	xr_config_handler.connect("xr_game_options_cfg_loaded", Callable(self, "_on_xr_config_handler_xr_game_options_cfg_loaded"))
 	xr_config_handler.connect("xr_game_control_map_cfg_loaded", Callable(self, "_on_xr_config_handler_xr_game_control_map_cfg_loaded"))
 	xr_config_handler.connect("xr_game_action_map_cfg_loaded", Callable(self, "_on_xr_config_handler_xr_game_action_map_cfg_loaded"))
 	xr_config_handler.connect("xr_game_options_cfg_saved", Callable(self, "_on_xr_config_handler_xr_game_options_cfg_saved"))
 	xr_config_handler.connect("xr_game_control_map_cfg_saved", Callable(self, "_on_xr_config_handler_xr_game_control_map_cfg_saved"))
 	xr_config_handler.connect("xr_game_action_map_cfg_saved", Callable(self, "_on_xr_config_handler_xr_game_action_map_cfg_saved"))
-	xr_gui_menu.connect("setting_changed", Callable(self, "_on_xr_gui_setting_changed"))
+	#xr_gui_menu.connect("setting_changed", Callable(self, "_on_xr_gui_setting_changed"))
 	
 	# Set up unshaded material for pointers and cursor3D objects
 	unshaded_material.disable_ambient_light = true
@@ -1188,7 +1189,7 @@ func _setup_new_xr_origin(new_origin : XROrigin3D):
 	set_xr_hands()
 	
 	# Set controller for ugvr menu
-	xr_gui_menu.set_xr_controller(primary_controller)
+	#xr_gui_menu.set_xr_controller(primary_controller)
 	
 func setup_viewports():
 	# Turn off FSR
@@ -1609,6 +1610,7 @@ func set_xr_game_options():
 	use_physics_hands = xr_config_handler.use_physics_hands
 	physics_hand_drag = xr_config_handler.physics_hand_drag
 	player_light_multiplier = xr_config_handler.player_light_multiplier
+	movement_direction_device  = xr_config_handler.movement_direction_device
 
 	# Load camera options
 	xr_world_scale = xr_config_handler.xr_world_scale
@@ -1692,7 +1694,7 @@ func set_xr_game_options():
 			xr_autosave_timer.set_paused(true)
 
 	# Update UGVR GUI
-	update_ugvr_gui()
+	#update_ugvr_gui()
 
 # Function to set proper world scale for various nodes that depend on sizes and distances
 func set_worldscale_for_xr_nodes(new_xr_world_scale):
@@ -1745,7 +1747,7 @@ func set_xr_control_options():
 	var finished = map_xr_controllers_to_action_map()
 	
 	# Update UGVR GUI
-	update_ugvr_gui()
+	#update_ugvr_gui()
 
 # Function to pull current state of config handler action map variables to set same xr scene variables based on user config	
 func set_xr_action_map_options():
@@ -1765,7 +1767,7 @@ func set_xr_action_map_options():
 	setup_radial_menu()
 	
 	# Update UGVR GUI
-	update_ugvr_gui()
+	#update_ugvr_gui()
 
 	
 # Receiver function for config file signal that game options have been loaded
