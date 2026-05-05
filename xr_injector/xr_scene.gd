@@ -787,35 +787,40 @@ func process_joystick_inputs(_delta: float):
 	# Send dpad on secondary joystick for IOA menus
 	seconds_since_last_dpad += _delta
 	var cooldown_ready := seconds_since_last_dpad > 0.2
-	if secondary_x_axis.axis_value < -0.5 and cooldown_ready:
-		dpad_left.pressed = true
-		Input.parse_input_event(dpad_left)
-		seconds_since_last_dpad = 0.0
+	if secondary_x_axis.axis_value < -0.5:
+		if cooldown_ready:
+			dpad_left.pressed = true
+			Input.parse_input_event(dpad_left)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_left.pressed = false
 		Input.parse_input_event(dpad_left)
 		
 		
-	if secondary_x_axis.axis_value >= 0.5 and cooldown_ready:
-		dpad_right.pressed = true
-		Input.parse_input_event(dpad_right)
+	if secondary_x_axis.axis_value >= 0.5:
+		if cooldown_ready:
+			dpad_right.pressed = true
+			Input.parse_input_event(dpad_right)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_right.pressed = false
 		Input.parse_input_event(dpad_right)
 		
 		
-	if secondary_y_axis.axis_value < -0.5 and cooldown_ready:
-		dpad_up.pressed = true
-		Input.parse_input_event(dpad_up)
-		seconds_since_last_dpad = 0.0
+	if secondary_y_axis.axis_value < -0.5:
+		if cooldown_ready:
+			dpad_up.pressed = true
+			Input.parse_input_event(dpad_up)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_up.pressed = false
 		Input.parse_input_event(dpad_up)
 		
-	if secondary_y_axis.axis_value >= 0.5  and cooldown_ready:
-		dpad_down.pressed = true
-		Input.parse_input_event(dpad_down)
-		seconds_since_last_dpad = 0.0
+	if secondary_y_axis.axis_value >= 0.5:
+		if cooldown_ready:
+			dpad_down.pressed = true
+			Input.parse_input_event(dpad_down)
+			seconds_since_last_dpad = 0.0
 	else:
 		dpad_down.pressed = false
 		Input.parse_input_event(dpad_down)
