@@ -546,7 +546,7 @@ func handle_primary_xr_inputs(button):
 		else:
 			var game_character_height := current_camera.global_position.y
 			print("Game character height: ", game_character_height)
-			var real_height := xr_camera_3d.global_position.y
+			var real_height := xr_camera_3d.global_position.y - roomscale_height_adjustment
 			print("Player VR height: ", real_height)
 			
 			roomscale_height_adjustment = game_character_height - real_height
@@ -1616,7 +1616,7 @@ func set_xr_game_options():
 	secondary_viewport_offset = xr_config_handler.secondary_viewport_offset
 
 	# Load roomscale options
-	use_roomscale = xr_config_handler.use_roomscale
+	use_roomscale = true
 	roomscale_height_adjustment = xr_config_handler.roomscale_height_adjustment
 	original_roomscale_height_adjustment = roomscale_height_adjustment
 	attempt_to_use_camera_to_set_roomscale_height = xr_config_handler.attempt_to_use_camera_to_set_roomscale_height
