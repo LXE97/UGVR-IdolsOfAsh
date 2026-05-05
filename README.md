@@ -1,79 +1,63 @@
-# UGVR
- A mod to transform Godot 4 games from 3D to VR.
+# Idols of Ash VR
+This is a fork of Universal Godot VR Injector with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
 
- Find ready-made configs/profiles for certain games that have been manually tested here: https://github.com/teddybear082/UGVR_game_profiles.
+## Installation
+1. Download the [release zip](https://github.com/LXE97/UGVR-IdolsOfAsh/releases/download/v1.0.0/IdolsOfAsh-VR.zip)
+2. Extract it to your IdolsOfAsh directory (next to idols_of_ash.exe)
+    - **If you have installed other mods** that came with their own override.cfg, you'll need to merge those manually. For example:
+        ````
+        [autoload_prepend]
+        XRInjector="*res://xr_injector/xr_injector.gd"
+        ModLoader="*res://addons/mod_loader/mod_loader.gd"
+        ModLoaderStore="*res://addons/mod_loader/mod_loader_store.gd"
+        ````
+3. Make sure your headset and controllers are connected and ready before launching
 
-## IN DEVELOPMENT.
-![thumb](https://github.com/teddybear082/UGVR/assets/87204721/2a7b55f6-605f-47ab-9964-d838c543f3a6)
+All of the options are located in the XRConfigs folder:
+````
+idols of ash_xr_game_action_map.cfg         - game keybindings
+idols of ash_xr_game_options.cfg            - VR settings
+idols of ash_xr_game_control_map.cfg        - misc controller settings
+````
+## Controls
+The VR controller is mapped to Xbox gamepad buttons by `control_map.cfg`, and the game keybindings are configured in `action_map.cfg`. The triggers are hardcoded to fire the grappling hook, but everything else should be configurable.
 
-https://vimeo.com/924331826
+![Control map](control_map.png)
 
-## Presently working:
+### Joystick direction
+Use `movement_direction_device` in `game_options.cfg` to change the reference for the joystick direction. By default it's set to Head (HMD).
+````
+0 = HMD
+1 = Primary Controller
+2 = Secondary Controller
+````
 
--Inject VR camera into most Godot 4 3D games tested in the position of the active camera and display "VR Hands"
+## Other Options
+Misc options in `game_options.cfg`:
+* `use_palm_healthbar`
+  * Disable or resize the floating healthbar
+* `roomscale_height_adjustment`
+* `xr_world_scale`
+  * Adjust camera height and VR world scale
+* `xr_hand_material_choice`
+  * Coose a different hand model:
 
--Display 2D UI of most Godot 4 3D games in an interactable panel in the VR world
+        0 Transparent hand
+        1 Full blue glove            
+        2 Half glove dark skinned
+        3 No glove light skinned
+        4 No glove dark skinned
+        5 Full yellow glove
+        6 half glove light skinned
+* `terrain_collision_fade`
+  * Disable the fade-to-black effect when the VR camera goes into a wall
 
--Basic emulation of xbox game pad with motion controls (hotkey to enable start,select and dpad)
+## Known Issues
 
--Turn on/off menu pointers with gesture (place hand near top of head and press trigger)
+## Credits
+Thanks to [ElKameleon](https://github.com/ElKameleon/DescentWithoutDread/tree/main) for the detailed guide on how to set up Godot mods.
 
--Take user height into account for camera position with gesture (place right hand near top of head and press B/Y)
+Thanks to the creators of UGVR for all their hard work
+### [Original UGVR readme](https://github.com/teddybear082/UGVR)
 
--reload user config of action map on demand in case game overwrites it, with gesture (place left hand near top of head and press B/Y)
-
--Snap and smooth turn of user camera (right now, default set to snap since no user config yet)
-
--Allow user to change between HMD-directed and controller-directed movement
-
--Allow user to map input action map actions to VR Controls (in the alternative of default mapping, for example, for pure keyboard games) (currently via manual config file only, which is created automatically when running game with mod for the first time in a special XRConfigs folder)  - see https://github.com/teddybear082/UGVR/wiki/Remapping-Controls-with-Action-Map-Config for more details.
-
--Allow user to convert to roomscale mode, intended for FPS games, to reparent the XR elements to the player CharacterBody3D, and walk around in room and turn freely while having in game character reflect those movements (may have unintended effects in third person mode, not tested)
-
--Allow user to change the location of the viewports where game 2D elements / Canvas layer appear
-
--Allow user to change the resolution of the viewports where game 2D elements / Canvas layer appear
-
--Allow user to make changes to VR game options config so they are loaded and retained between game sessions
-
--Allow user to use custom hand radial menu with either emulated buttons or emulated game actions 
-
--Allow user to implement custom code to reparent game object to primary controller and adjust game position relative to hand
-
--Allow user to print to log current scene tree (scene_tree_pretty) for use in developing game-specific code
-
--Allow user to bind haptics to game actions
-
--Allow user to assign a game action to swinging each controller in a melee motion with assignable velocity threshold and cooldown
-
--Basic in-VR GUI for simple VR options (still testing, still buggy, needs more work)
-
-## Presently not working / Roadmap:
-
--Allow user to modify game (like UEVR) to change camera transform, reparent XR camera to a different game element
-
-## Use
-
-Not presently intended for regular users as this tool is in heavy development / testing, and the code may regularly break or change. For devs or testers, see instructions in Wiki: https://github.com/teddybear082/UGVR/wiki/1.-Getting-Started
-
-# CREDITS
-
--Decacis for inventing a way to easily inject XR Origin into camera for Godot 4 3D games.  Check out Decacis's game BadaBoom on Oculus AppLab: https://meta.com/experiences/5816419461787331/
-
--JulianTodd and Decacis for figuring out a way for 2D UI in 3D games to work "universally" in VR with input, and Bastiaan Olij for a fix to get CanvasLayer elements to appear in VR as well as code for example of CharacterBody3D driven XR origin.  Check out JulianTodd's game TunnelVR on Sidequest: https://sidequestvr.com/app/1630/tunnelvr
-
--Lejar for radial menu code again: https://github.com/lejar 
-
--Godot XR Tools team - going to be heavily leveraging scripts from Godot XR Tools: https://github.com/GodotVR/godot-xr-tools
-
- -Check out MalcolmNixon's Youtube here: https://www.youtube.com/@MalcolmANixon
-
- -Check out Bastiaan Olij's Youtube here: https://www.youtube.com/c/BastiaanOlij
-
- -Check out DigitalNightmare's Steam Page here: https://store.steampowered.com/developer/DNeU and Youtube here: https://www.youtube.com/@DigitalN8m4r3
-
--Avat / patrykkalinowski for the node smoothing code found in his MIT licensed github repo here: https://github.com/patrykkalinowski/godot-xr-kit/tree/master/addons/xr-kit/smooth-input-filter
-
--Brane from BRANEGAMES for help with godot 2d UI for the UGVR UI. Check out his games on steam here: https://store.steampowered.com/publisher/brane
-
--Praydog for concept of universal VR mod (for Unreal Engine - UEVR) and providing advice about potential methods to display 2D UI in VR
+### [The UGVR wiki](https://github.com/teddybear082/UGVR) may be helpful for customization and troubleshooting

@@ -3,5 +3,7 @@ project.godot
 !xr_injector/
 !xr_injector/**
 !overridecfg
+!XRConfigs/
+!README.md
 *.import
 *.uid
