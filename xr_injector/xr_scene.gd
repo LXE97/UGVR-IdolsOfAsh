@@ -240,6 +240,7 @@ var use_physics_hands : bool = true
 var physics_hand_drag : float = 0.05
 var player_light_multiplier : float = 0.8
 var movement_direction_device : int = 0
+var ignore_sprint : bool = true
 
 func _ready() -> void:
 	set_process(false)
@@ -1611,7 +1612,8 @@ func set_xr_game_options():
 	physics_hand_drag = xr_config_handler.physics_hand_drag
 	player_light_multiplier = xr_config_handler.player_light_multiplier
 	movement_direction_device  = xr_config_handler.movement_direction_device
-
+	ignore_sprint  = xr_config_handler.ignore_sprint
+	
 	# Load camera options
 	xr_world_scale = xr_config_handler.xr_world_scale
 	camera_offset = xr_config_handler.camera_offset

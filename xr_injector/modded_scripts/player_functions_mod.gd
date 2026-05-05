@@ -30,40 +30,14 @@ static func GetGlobalMovementVector(device: Node3D) -> Vector3:
 	var movement_vector := forward * input.y + right * input.x
 	return movement_vector.limit_length(1.0)
 
+static func CurveInput(min, max, input, deadzone) -> float:
+	if input <= deadzone:
+		return min
 
-static func GetGlobalMovementVectorXR(device: Node3D) -> Vector3:
-	if !is_instance_valid(device):
-		return Vector3.ZERO
+	#cubic scaling
+	#input = input*input*input
+	input = remap(input, deadzone, 1.0, min, max)
+	input = clamp(input, min, max)
 
-	var input := Vector2(
-		Input.get_axis(inputAction_Left, inputAction_Right),
-		Input.get_axis(inputAction_Forward, inputAction_Backward)
-	)
-
-	if input.length_squared() <= 0.01:
-		return Vector3.ZERO
-
-	var basis := device.global_transform.basis
-
-	var forward := basis.z
-	forward.y = 0.0
-
-	var fallback_forward := basis.y
-	fallback_forward.y = 0.0
-
-	if fallback_forward.length_squared() > 0.0001:
-		fallback_forward = fallback_forward.normalized()
-
-	var flat_strength = clamp(forward.length(), 0.0, 1.0)
-
-	if forward.length_squared() > 0.0001:
-		forward = forward.normalized()
-	else:
-		forward = fallback_forward
-	var t = pow(1.0 - flat_strength, 2.0) 
-	forward = forward.lerp(fallback_forward, t).normalized()
-
-	var right := Vector3.UP.cross(forward).normalized()
-
-	var movement_vector := forward * input.y #+ right * input.x
-	return movement_vector.limit_length(1.0)
+	return input
+	

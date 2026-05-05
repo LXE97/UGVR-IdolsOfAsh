@@ -109,6 +109,7 @@ func setup_mod():
 	var new_default_state = ClimberState_Default_mod.new()
 	new_default_state.copy_state(climber.defaultClimberState)
 	new_default_state._movement_device = mod_camera_parent
+	new_default_state.ignore_sprint = xr_scene.ignore_sprint
 	
 	climber.defaultClimberState = new_default_state
 	climber.activeClimberState = new_default_state
@@ -316,6 +317,7 @@ func replace_state(climber: Climber, old_state, mod_type: GDScript) -> void:
 	var new_state = mod_type.new()
 	new_state.copy_state(old_state)
 	new_state._movement_device = mod_camera_parent
+	new_state.ignore_sprint = xr_scene.ignore_sprint
 	climber.activeClimberState = new_state
 
 
