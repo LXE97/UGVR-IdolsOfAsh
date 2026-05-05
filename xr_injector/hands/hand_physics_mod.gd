@@ -84,6 +84,8 @@ var is_blocked := false
 signal blocked
 signal unblocked
 
+var device_velocity : float = 0.0
+
 ## Pose-override class
 class PoseOverride:
 	## Who requested the override
@@ -166,6 +168,9 @@ func resize(factor: float):
 	shape.size *= factor
 	$CollisionShape3D.position *= factor
 
+var last_device_pos := Vector3.ZERO
+var blocking_normal := Vector3.ZERO
+
 ## This method checks for world-scale changes and scales itself causing the
 ## hand mesh and skeleton to scale appropriately. It then reads the grip and
 ## trigger action values to animate the hand.
@@ -184,6 +189,9 @@ func _physics_process(delta: float) -> void:
 	if _controller:
 		var grip: float = _controller.get_float(grip_action)
 		var trigger: float = _controller.get_float(trigger_action)
+		
+		device_velocity = (_controller.transform.origin - last_device_pos).length() / delta
+		last_device_pos = _controller.transform.origin
 
 		if _force_grip >= 0.0:
 			grip = _force_grip
@@ -235,6 +243,7 @@ func _physics_process(delta: float) -> void:
 			
 	# update blocked state
 	else:
+		blocking_normal = get_slide_collision(0).get_normal()
 		if !is_blocked:
 			is_blocked = true
 			blocked.emit()

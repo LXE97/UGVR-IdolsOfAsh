@@ -1305,6 +1305,7 @@ func instantiate_hand(isLeft : bool):
 		else:
 			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn").instantiate()
 		xr_left_controller.add_child(xr_left_hand)
+		xr_left_hand.name = "LeftHand"
 	else:
 		xr_right_hand = null
 		if use_physics_hands:
@@ -1313,14 +1314,17 @@ func instantiate_hand(isLeft : bool):
 		else:
 			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn").instantiate()
 		xr_right_controller.add_child(xr_right_hand)
+		xr_right_hand.name = "RightHand"
 
 # Function to set whether XR Hands are visible and the material
 func set_xr_hands():
 	# LXE97: reload them every time to account for use_physics_hand option
 	if is_instance_valid(xr_right_hand):
 		xr_right_hand.queue_free()
+		xr_right_controller.remove_child(xr_right_hand)
 	if  is_instance_valid(xr_left_hand):
 		xr_left_hand.queue_free()
+		xr_left_controller.remove_child(xr_left_hand)
 	instantiate_hand(true)
 	instantiate_hand(false)
 	print("hands reloaded")
