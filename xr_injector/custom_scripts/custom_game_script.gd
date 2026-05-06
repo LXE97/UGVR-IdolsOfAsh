@@ -7,8 +7,6 @@ const ClimberState_Attached_script = preload("res://scripts/climber_state_attach
 const ClimberState_Throw_script = preload("res://scripts/climber_state_throw.gd")
 const ClimberState_Default_script = preload("res://scripts/climber_state_default.gd")
 
-@export var hand_wall_slowdown := 0.05
-
 # Convenience XR Scene reference (the parent node of all of UGVR), do not modify, will be set in xr_scene.gd
 var xr_scene : Node3D = null
 # Convenience reference to the node at the top of the scene tree in any game, allows finding or getting other nodes in game scene tree
@@ -25,10 +23,11 @@ var climber : Node = null
 var climber_head_collision : Node = null
 var mod_camera_parent : Node3D = null
 
+var toggle_mode : bool = false
+
 #flag for initializing mod because we need to wait for the xr_Scene to settle
 var setup_request = true
 var is_setup = false
-
 
 
 func _ready():
@@ -38,6 +37,8 @@ func _ready():
 func _on_scene_changed(new_scene: Node) -> void:
 	primary_hook_down = false
 	secondary_hook_down = false
+	xr_scene.primary_trigger_state = false
+	xr_scene.secondary_trigger_state = false
 	
 	if new_scene:
 		print("scene changed to: ", new_scene.scene_file_path)
@@ -110,8 +111,6 @@ func _input(event: InputEvent) -> void:
 	if Dialogic.current_timeline != null:
 		return
 		
-	var toggle_mode = GameSettings.config.get_value("input", "hook_toggle_mode", false)
-
 	if event.is_action_pressed("ioa_hook_primary"):
 		primary_hook_down = true
 		on_hook_pressed(toggle_mode, true)
@@ -155,8 +154,9 @@ func on_hook_released(toggle_mode: bool) -> void:
 
 	if primary_hook_down or secondary_hook_down:
 		return
-
-	climber.set_climber_state(climber.defaultClimberState)
+		
+	if climber.activeClimberState != climber.defaultClimberState:
+		climber.set_climber_state(climber.defaultClimberState)
 
 func throw_hook(isPrimary : bool):
 	var t = ClimberState_Throw_mod_script.new()
@@ -183,6 +183,8 @@ func setup_mod():
 	setup_request = false
 	
 	modify_ui_style()
+	
+	toggle_mode = GameSettings.config.get_value("input", "hook_toggle_mode", false)
 	
 	match xr_scene.movement_direction_device:
 		1:
@@ -264,8 +266,7 @@ func setup_mod():
 	_claw.omni_light = omni_light
 	_claw._climber = climber
 	_claw._edge = _edge
-	#TODO: change on keypress
-	_claw.thrower_node=xr_scene.xr_right_hand
+	#_claw.thrower_node=xr_scene.xr_right_hand
 	_claw.default_light_intensity *= xr_scene.player_light_multiplier
 	_claw.omni_light.light_energy *= xr_scene.player_light_multiplier
 	_claw._ready()
@@ -313,6 +314,7 @@ func modify_ui_style():
 var mod_viewport : SubViewport
 var mod_viewport_control : Control
 var viewportscale = 0.7
+
 func create_subviewport(parent_3d: Node3D) -> void:
 	mod_viewport = SubViewport.new()
 	mod_viewport.size = Vector2i(128, 128)

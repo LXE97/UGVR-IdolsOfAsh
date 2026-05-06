@@ -796,7 +796,7 @@ func process_joystick_inputs(_delta: float):
 			dpad_left.pressed = true
 			Input.parse_input_event(dpad_left)
 			seconds_since_last_dpad = 0.0
-	else:
+	elif dpad_left.pressed:
 		dpad_left.pressed = false
 		Input.parse_input_event(dpad_left)
 		
@@ -806,7 +806,7 @@ func process_joystick_inputs(_delta: float):
 			dpad_right.pressed = true
 			Input.parse_input_event(dpad_right)
 			seconds_since_last_dpad = 0.0
-	else:
+	elif dpad_right.pressed:
 		dpad_right.pressed = false
 		Input.parse_input_event(dpad_right)
 		
@@ -816,7 +816,7 @@ func process_joystick_inputs(_delta: float):
 			dpad_up.pressed = true
 			Input.parse_input_event(dpad_up)
 			seconds_since_last_dpad = 0.0
-	else:
+	elif dpad_up.pressed:
 		dpad_up.pressed = false
 		Input.parse_input_event(dpad_up)
 		
@@ -825,12 +825,13 @@ func process_joystick_inputs(_delta: float):
 			dpad_down.pressed = true
 			Input.parse_input_event(dpad_down)
 			seconds_since_last_dpad = 0.0
-	else:
+	elif dpad_down.pressed:
 		dpad_down.pressed = false
 		Input.parse_input_event(dpad_down)
 	
 	# Otherwise process joystick like normal		
 
+	
 	Input.parse_input_event(secondary_x_axis)
 	Input.parse_input_event(secondary_y_axis)
 	if not stick_emulate_mouse_movement:
@@ -1613,7 +1614,7 @@ func set_xr_game_options():
 	palm_healthbar_scale = xr_config_handler.palm_healthbar_scale
 	use_head_collider = xr_config_handler.use_head_collider
 	use_physics_hands = xr_config_handler.use_physics_hands
-	physics_hand_drag = xr_config_handler.physics_hand_drag
+	physics_hand_drag = clamp(xr_config_handler.physics_hand_drag, 0.0, 1.0)
 	player_light_multiplier = xr_config_handler.player_light_multiplier
 	movement_direction_device  = xr_config_handler.movement_direction_device
 	ignore_sprint  = xr_config_handler.ignore_sprint
