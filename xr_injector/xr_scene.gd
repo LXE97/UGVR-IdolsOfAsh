@@ -109,7 +109,7 @@ var pointer_gesture_toggle_button = "trigger_click"
 var gesture_load_action_map_button = "by_button"
 
 # Button to set height with gesture (temporary, should eventually be GUI) - Needs to be included in config file
-var gesture_set_user_height_button = "by_button"
+var gesture_set_user_height_button = "primary_click"
 
 # Button to manually toggle to next potential active camera with head gesture
 var gesture_toggle_active_camera_button = "ax_button"
@@ -239,6 +239,10 @@ var use_head_collider : bool = true
 var use_physics_hands : bool = true
 var physics_hand_drag : float = 0.05
 var player_light_multiplier : float = 0.8
+var movement_direction_device : int = 0
+var ignore_sprint : bool = true
+var enable_hand_haptics : bool = true
+var enable_hook_haptics : bool = true
 
 func _ready() -> void:
 	set_process(false)
@@ -250,14 +254,14 @@ func _ready() -> void:
 	xr_start.connect("xr_started", Callable(self, "_on_xr_started"))
 	xr_autosave_timer.connect("timeout", Callable(self, "_on_xr_autosave_timer_timeout"))
 	xr_physical_movement_controller.connect("tree_exiting", Callable(self, "_on_xr_origin_exiting_tree"))
-	xr_radial_menu.connect("entry_selected", Callable(self, "_on_xr_radial_menu_entry_selected"))
+	#xr_radial_menu.connect("entry_selected", Callable(self, "_on_xr_radial_menu_entry_selected"))
 	xr_config_handler.connect("xr_game_options_cfg_loaded", Callable(self, "_on_xr_config_handler_xr_game_options_cfg_loaded"))
 	xr_config_handler.connect("xr_game_control_map_cfg_loaded", Callable(self, "_on_xr_config_handler_xr_game_control_map_cfg_loaded"))
 	xr_config_handler.connect("xr_game_action_map_cfg_loaded", Callable(self, "_on_xr_config_handler_xr_game_action_map_cfg_loaded"))
 	xr_config_handler.connect("xr_game_options_cfg_saved", Callable(self, "_on_xr_config_handler_xr_game_options_cfg_saved"))
 	xr_config_handler.connect("xr_game_control_map_cfg_saved", Callable(self, "_on_xr_config_handler_xr_game_control_map_cfg_saved"))
 	xr_config_handler.connect("xr_game_action_map_cfg_saved", Callable(self, "_on_xr_config_handler_xr_game_action_map_cfg_saved"))
-	xr_gui_menu.connect("setting_changed", Callable(self, "_on_xr_gui_setting_changed"))
+	#xr_gui_menu.connect("setting_changed", Callable(self, "_on_xr_gui_setting_changed"))
 	
 	# Set up unshaded material for pointers and cursor3D objects
 	unshaded_material.disable_ambient_light = true
@@ -1188,7 +1192,7 @@ func _setup_new_xr_origin(new_origin : XROrigin3D):
 	set_xr_hands()
 	
 	# Set controller for ugvr menu
-	xr_gui_menu.set_xr_controller(primary_controller)
+	#xr_gui_menu.set_xr_controller(primary_controller)
 	
 func setup_viewports():
 	# Turn off FSR
@@ -1307,6 +1311,7 @@ func instantiate_hand(isLeft : bool):
 		if use_physics_hands:
 			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low_physics.tscn").instantiate()
 			xr_left_hand.xr_camera = xr_camera_3d
+			xr_left_hand.enable_hand_haptics = enable_hand_haptics
 		else:
 			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn").instantiate()
 		xr_left_controller.add_child(xr_left_hand)
@@ -1316,6 +1321,7 @@ func instantiate_hand(isLeft : bool):
 		if use_physics_hands:
 			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low_physics.tscn").instantiate()
 			xr_right_hand.xr_camera = xr_camera_3d
+			xr_right_hand.enable_hand_haptics = enable_hand_haptics
 		else:
 			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn").instantiate()
 		xr_right_controller.add_child(xr_right_hand)
@@ -1609,7 +1615,13 @@ func set_xr_game_options():
 	use_physics_hands = xr_config_handler.use_physics_hands
 	physics_hand_drag = xr_config_handler.physics_hand_drag
 	player_light_multiplier = xr_config_handler.player_light_multiplier
-
+	movement_direction_device  = xr_config_handler.movement_direction_device
+	ignore_sprint  = xr_config_handler.ignore_sprint
+	enable_hand_haptics = xr_config_handler.enable_hand_haptics
+	enable_hook_haptics = xr_config_handler.enable_hook_haptics
+	
+	xr_black_out.terrain_collision_fade = terrain_collision_fade
+	
 	# Load camera options
 	xr_world_scale = xr_config_handler.xr_world_scale
 	camera_offset = xr_config_handler.camera_offset
@@ -1692,7 +1704,7 @@ func set_xr_game_options():
 			xr_autosave_timer.set_paused(true)
 
 	# Update UGVR GUI
-	update_ugvr_gui()
+	#update_ugvr_gui()
 
 # Function to set proper world scale for various nodes that depend on sizes and distances
 func set_worldscale_for_xr_nodes(new_xr_world_scale):
@@ -1745,7 +1757,7 @@ func set_xr_control_options():
 	var finished = map_xr_controllers_to_action_map()
 	
 	# Update UGVR GUI
-	update_ugvr_gui()
+	#update_ugvr_gui()
 
 # Function to pull current state of config handler action map variables to set same xr scene variables based on user config	
 func set_xr_action_map_options():
@@ -1765,7 +1777,7 @@ func set_xr_action_map_options():
 	setup_radial_menu()
 	
 	# Update UGVR GUI
-	update_ugvr_gui()
+	#update_ugvr_gui()
 
 	
 # Receiver function for config file signal that game options have been loaded

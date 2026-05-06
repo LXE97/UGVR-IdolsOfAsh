@@ -245,6 +245,10 @@ var use_head_collider : bool = true
 var use_physics_hands : bool = true
 var physics_hand_drag : float = 0.05
 var player_light_multiplier : float = 0.8
+var movement_direction_device : int = 0
+var ignore_sprint : bool = true
+var enable_hand_haptics : bool = true
+var enable_hook_haptics : bool = true
 
 # CAMERA Config Options in GAME options
 
@@ -307,6 +311,11 @@ var cfg_base_path : String
 
 # Set up files for configs
 func _ready():
+	
+	# LXE97: add custom game actions
+	InputMap.add_action("ioa_hook_primary")
+	InputMap.add_action("ioa_hook_secondary")
+	
 	var game_name : String = ProjectSettings.get_setting("application/config/name")
 	
 	if game_name == "":
@@ -364,6 +373,10 @@ func load_game_options_cfg_file(file_path: String) -> bool:
 	use_physics_hands = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "use_physics_hands", use_physics_hands)
 	physics_hand_drag = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "physics_hand_drag", physics_hand_drag)
 	player_light_multiplier = game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "player_light_multiplier", player_light_multiplier)
+	movement_direction_device = game_options_cfg_file.get_value("ROOMSCALE_OPTIONS", "movement_direction_device", movement_direction_device)
+	ignore_sprint= game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "ignore_sprint", ignore_sprint)
+	enable_hand_haptics= game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "enable_hand_haptics", enable_hand_haptics)
+	enable_hook_haptics= game_options_cfg_file.get_value("IDOLS_OF_ASH_OPTIONS", "enable_hook_haptics", enable_hook_haptics)
 
 	# Load camera options
 	xr_world_scale = game_options_cfg_file.get_value("CAMERA_OPTIONS", "xr_world_scale", xr_world_scale)
@@ -427,7 +440,11 @@ func save_game_options_cfg_file(file_path):
 	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "use_physics_hands", use_physics_hands)
 	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "physics_hand_drag", physics_hand_drag) 
 	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "player_light_multiplier", player_light_multiplier) 
-	
+	game_options_cfg_file.set_value("ROOMSCALE_OPTIONS", "movement_direction_device", movement_direction_device) 
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "ignore_sprint", ignore_sprint) 
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "enable_hand_haptics", enable_hand_haptics)
+	game_options_cfg_file.set_value("IDOLS_OF_ASH_OPTIONS", "enable_hook_haptics", enable_hook_haptics)
+		
 	# Save camera options
 	
 	game_options_cfg_file.set_value("CAMERA_OPTIONS", "xr_world_scale", xr_world_scale)

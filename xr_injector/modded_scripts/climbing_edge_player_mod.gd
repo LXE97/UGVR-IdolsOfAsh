@@ -14,6 +14,9 @@ func get_global_position() -> Vector3:
 
 func set_root(target: Node, use_physics: bool):
 	if use_physics:
+		if target.blocked.is_connected(_on_hand_blocked):
+			target.blocked.disconnect(_on_hand_blocked)
+			target.unblocked.disconnect(_on_hand_unblocked)
 		hand = target
 		root_node = hand.get_parent()
 		hand.blocked.connect(_on_hand_blocked)
@@ -22,11 +25,9 @@ func set_root(target: Node, use_physics: bool):
 		root_node = target
 
 func _on_hand_blocked() -> void:
-	print("Hand blocked")
 	root_node = hand
 
 func _on_hand_unblocked() -> void:
-	print("Hand unblocked")
 	root_node = hand.get_parent()
 
 func apply_correction(climber: Climber, delta: float):
@@ -93,7 +94,7 @@ func apply_correction(climber: Climber, delta: float):
 			dmg_from_over_tension *= math_helpers.clamp01(climber.AirVelocity.length() * 0.02)
 			if dmg_from_over_tension > 10.0:
 				if Time.get_ticks_msec() > climber.last_damage_from_over_tension_ms + 1000:
-					climber.last_damage_from_ovstateer_tension_ms = Time.get_ticks_msec()
+					climber.last_damage_from_over_tension_ms = Time.get_ticks_msec()
 					climber.take_damage(dmg_from_over_tension)
 		
 		# Fix for phasing through ledges

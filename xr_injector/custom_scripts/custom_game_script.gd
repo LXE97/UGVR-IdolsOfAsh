@@ -1,5 +1,12 @@
 extends Node
 
+const ClimberState_Attached_mod_script = preload("res://xr_injector/modded_scripts/climber_state_attached_mod.gd")
+const ClimberState_Throw_mod_script = preload("res://xr_injector/modded_scripts/climber_state_throw_mod.gd")
+const ClimberState_Default_mod_script = preload("res://xr_injector/modded_scripts/climber_state_default_mod.gd")
+const ClimberState_Attached_script = preload("res://scripts/climber_state_attached.gd")
+const ClimberState_Throw_script = preload("res://scripts/climber_state_throw.gd")
+const ClimberState_Default_script = preload("res://scripts/climber_state_default.gd")
+
 @export var hand_wall_slowdown := 0.05
 
 # Convenience XR Scene reference (the parent node of all of UGVR), do not modify, will be set in xr_scene.gd
@@ -14,15 +21,24 @@ var prev_scene : Node = null
 
 # main reference for changing player logic
 var climber : Node = null
+
 var climber_head_collision : Node = null
+var mod_camera_parent : Node3D = null
 
 #flag for initializing mod because we need to wait for the xr_Scene to settle
 var setup_request = true
+var is_setup = false
+
+
 
 func _ready():
+	
 	pass
 	
 func _on_scene_changed(new_scene: Node) -> void:
+	primary_hook_down = false
+	secondary_hook_down = false
+	
 	if new_scene:
 		print("scene changed to: ", new_scene.scene_file_path)
 		var path := new_scene.scene_file_path
@@ -43,6 +59,7 @@ func _on_scene_changed(new_scene: Node) -> void:
 				return
 
 		setup_request = true
+		is_setup = false
 	else:
 		print("scene changed to null")
 
@@ -57,12 +74,24 @@ func _process(delta):
 	if stop_process_flag or not xr_scene:
 		return
 	
-	if xr_scene.use_palm_healthbar:	
-		if xr_scene.get_parent().get_parent() is CharacterBody3D:
-			update_palm_hud_fade()
-	
-	if setup_request:
+	if setup_request and Engine.get_process_frames() % 90 == 0:
 		setup_mod()
+		
+	# Mod player state to enable analogue joystick values.
+	if is_setup:
+		var s = climber.activeClimberState.get_script()
+		if s == ClimberState_Attached_script: 
+			replace_state(climber, climber.activeClimberState, ClimberState_Attached_mod_script)
+			if xr_scene.enable_hook_haptics:
+				climber.Rope._claw.thrower_node.trigger_haptic_pulse("haptic", 150, 1.0, 0.13, 0.0)
+		elif s == ClimberState_Throw_script:
+			replace_state(climber, climber.activeClimberState, ClimberState_Throw_mod_script)
+		#elif s is ClimberState_Default and not (s is ClimberState_Default_mod):
+		#	replace_state(climber, s, ClimberState_Default_mod)
+		
+		if xr_scene.use_palm_healthbar:	
+			if xr_scene.xr_origin_3d.get_parent() is CharacterBody3D:
+				update_palm_hud_fade()
 	
 var head_collider_offset := Vector3(0.0, 0.07, 0.0)
 func _physics_process(delta):
@@ -72,6 +101,77 @@ func _physics_process(delta):
 		
 	if climber_head_collision != null and is_instance_valid(climber_head_collision):
 		climber_head_collision.global_position = xr_scene.xr_camera_3d.global_position + head_collider_offset * xr_scene.xr_world_scale
+
+
+var primary_hook_down := false
+var secondary_hook_down := false
+
+func _input(event: InputEvent) -> void:
+	if Dialogic.current_timeline != null:
+		return
+		
+	var toggle_mode = GameSettings.config.get_value("input", "hook_toggle_mode", false)
+
+	if event.is_action_pressed("ioa_hook_primary"):
+		primary_hook_down = true
+		on_hook_pressed(toggle_mode, true)
+
+	elif event.is_action_pressed("ioa_hook_secondary"):
+		secondary_hook_down = true
+		on_hook_pressed(toggle_mode, false)
+
+	if event.is_action_released("ioa_hook_primary"):
+		primary_hook_down = false
+		on_hook_released(toggle_mode)
+
+	elif event.is_action_released("ioa_hook_secondary"):
+		secondary_hook_down = false
+		on_hook_released(toggle_mode)
+		
+func on_hook_pressed(toggle_mode: bool, isPrimary : bool) -> void:
+	if not climber.grapple_claw_is_enabled:
+		return
+
+	if not toggle_mode:
+		throw_hook(isPrimary)
+		
+	else:
+		if isPrimary:
+			if climber.Rope._claw.thrower_node == xr_scene.xr_right_controller and \
+			climber.activeClimberState != climber.defaultClimberState:
+				climber.set_climber_state(climber.defaultClimberState)
+				return
+		else:	
+			if climber.Rope._claw.thrower_node == xr_scene.xr_left_controller and \
+			climber.activeClimberState != climber.defaultClimberState:
+				climber.set_climber_state(climber.defaultClimberState)
+				return
+		
+		throw_hook(isPrimary)
+
+func on_hook_released(toggle_mode: bool) -> void:
+	if toggle_mode:
+		return
+
+	if primary_hook_down or secondary_hook_down:
+		return
+
+	climber.set_climber_state(climber.defaultClimberState)
+
+func throw_hook(isPrimary : bool):
+	var t = ClimberState_Throw_mod_script.new()
+	t._movement_device = mod_camera_parent
+
+	if isPrimary:
+		climber.Rope._claw.thrower_node = xr_scene.xr_right_controller
+		climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
+	else:
+		climber.Rope._claw.thrower_node = xr_scene.xr_left_controller
+		climber.Edge.set_root(xr_scene.xr_left_hand, xr_scene.use_physics_hands)
+		
+	climber.set_climber_state(t)
+	#if xr_scene.enable_hand_haptics:
+		#climber.Rope._claw.thrower_node.trigger_haptic_pulse("haptic", 0.0, 0.5, 0.4, 0.0)
 
 func setup_mod():
 	print("mod setup")
@@ -83,6 +183,22 @@ func setup_mod():
 	setup_request = false
 	
 	modify_ui_style()
+	
+	match xr_scene.movement_direction_device:
+		1:
+			mod_camera_parent = xr_scene.primary_controller
+		2: 
+			mod_camera_parent = xr_scene.secondary_controller
+		_:
+			mod_camera_parent = xr_scene.xr_camera_3d
+	
+	var new_default_state = ClimberState_Default_mod_script.new()
+	new_default_state.copy_state(climber.defaultClimberState)
+	new_default_state._movement_device = mod_camera_parent
+	new_default_state.ignore_sprint = xr_scene.ignore_sprint
+	
+	climber.defaultClimberState = new_default_state
+	climber.activeClimberState = new_default_state
 	
 	if xr_scene.use_palm_healthbar:
 		#check for existing UI
@@ -126,7 +242,7 @@ func setup_mod():
 	var edgemod := load("res://xr_injector/modded_scripts/climbing_edge_player_mod.gd")
 	climber.Edge.set_script(edgemod)
 	climber.Edge.setup(climber)
-	climber.Edge.set_root(xr_scene.xr_right_hand, true)
+	climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
 	climber.Edge.scale = xr_scene.xr_world_scale * 0.85
 	var light := climber.get_node_or_null("OmniLight3D") as OmniLight3D
 	if light != null:
@@ -169,6 +285,10 @@ func setup_mod():
 		right = xr_scene.xr_right_hand.get_node_or_null("Hand_Nails_low_R/Armature/Skeleton3D/mesh_Hand_Nails_low_R")
 	
 	left.get_active_material(0).no_depth_test = false
+	
+	
+	
+	is_setup = true
 	
 func on_hand_blocked():
 	climber.Rope._settings.airVelocityDrag += xr_scene.physics_hand_drag
@@ -262,18 +382,22 @@ func steal_healthbar() -> void:
 	slack.offset_right = 20
 	slack.offset_bottom = 20
 
-	#hbar.position = Vector2(40, 20)
-	#slack.position = Vector2(0, 0)
-
 func update_palm_hud_fade() -> void:
-	for child in xr_scene.xr_left_hand.get_children():
-		if child is MeshInstance3D:            
-			var to_camera = (xr_scene.xr_camera_3d.global_position - xr_scene.xr_left_hand.global_position).normalized()
+	for child in mod_viewport_control.get_parent().get_parent().get_children():
+		if child is MeshInstance3D:   
+			var camera = xr_scene.xr_camera_3d
+			var hand = xr_scene.xr_left_hand
+			
+			var palm_normal = hand.global_basis.x.normalized()
+			var hand_to_camera = (camera.global_position - hand.global_position).normalized()
 
-			var palm_normal = xr_scene.xr_left_hand.global_basis.x.normalized()
+			var palm_facing_camera = palm_normal.dot(hand_to_camera)
 
-			var facing = palm_normal.dot(to_camera)
-			var target_alpha = clamp(inverse_lerp(0.6, 0.9, facing), 0.0, 1.0)
+			var camera_forward = -camera.global_basis.z.normalized()
+			var camera_looking_at_hand = camera_forward.dot(-hand_to_camera)
+
+			var facing = palm_facing_camera * camera_looking_at_hand
+			var target_alpha = clamp(inverse_lerp(0.7, 1.0, facing), 0.0, 1.0)
 
 			var mat := child.material_override as StandardMaterial3D
 			if mat == null:
@@ -281,6 +405,13 @@ func update_palm_hud_fade() -> void:
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			mat.albedo_color.a = target_alpha
 			return
+
+func replace_state(climber: Climber, old_state, mod_type: GDScript) -> void:
+	var new_state = mod_type.new()
+	new_state.copy_state(old_state)
+	new_state._movement_device = mod_camera_parent
+	new_state.ignore_sprint = xr_scene.ignore_sprint
+	climber.activeClimberState = new_state
 
 
 ## Built in UGVR Convenience Functions for Your Potential Use
@@ -367,3 +498,4 @@ func set_xr_scene(new_xr_scene) -> void:
 	xr_scene = new_xr_scene
 	scene_root = get_node("/root")
 	xr_scene.xr_pointer.set_enabled(false)
+	InputMap.action_erase_events("ioa_hook")

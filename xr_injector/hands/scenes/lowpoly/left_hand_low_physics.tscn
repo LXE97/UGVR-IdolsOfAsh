@@ -47,6 +47,9 @@ script = ExtResource("1_o4q1o")
 hand_blend_tree = ExtResource("6")
 default_pose = ExtResource("3_ry7qg")
 max_blocked_distance = 0.04
+rotate_to_wall_start_distance = 0.01
+rotate_to_wall_full_distance = 0.15
+wall_align_max_angle_step = 0.7
 
 [node name="HandMesh" parent="." unique_id=1985187368 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.03, -0.05, 0.15)

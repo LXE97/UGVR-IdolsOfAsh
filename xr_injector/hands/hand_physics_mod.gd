@@ -39,7 +39,19 @@ signal hand_scale_changed(scale)
 @export var search_separation := 0.4
 @export var blocked_smoothing := 12.0
 @export var free_smoothing := 40.0
-@export var max_blocked_distance := 0.1
+@export var max_free_distance := 1.0
+@export var max_blocked_distance := 0.05
+
+@export var rotate_to_wall_start_distance := 0.15
+@export var rotate_to_wall_full_distance := 0.45
+@export var wall_align_max_angle_step := deg_to_rad(10.0)
+@export var wall_align_min_dot := 0.95
+
+var wall_hand_side_sign := 0.0
+var last_blocking_normal := Vector3.ZERO
+var enable_hand_haptics = true
+var unblocked_time  = 0.0
+@export var normal_change_threshold := 0.2
 
 ## Last world scale (for scaling hands)
 var _last_world_scale : float = 1.0
@@ -201,60 +213,143 @@ func _physics_process(delta: float) -> void:
 		$AnimationTree.set("parameters/Grip/blend_amount", grip)
 		$AnimationTree.set("parameters/Trigger/blend_amount", trigger)
 
+	# Move with collision
 	var target_transform := _target.global_transform * _transform
 	target_transform.basis = target_transform.basis.orthonormalized()
 	var target_pos := target_transform.origin
 
-	var separation := global_position.distance_to(target_pos)
-
+	var motion := target_pos - global_position
+	var distance := motion.length()
+	
 	# Snap if very far away
-	if separation > max_controller_separation:
+	if distance > max_controller_separation:
 		global_transform = target_transform
 		velocity = Vector3.ZERO
 		force_update_transform()
 		return
 	# If separated, try to find a path from the camera to the controller
-	elif separation > search_separation:
+	elif distance > search_separation:
 		var snap_transform := get_camera_to_controller_blocked_transform(target_transform)
 		global_transform = snap_transform
 		velocity = Vector3.ZERO
 		force_update_transform()
 		return
 
+	var max_step := max_blocked_distance
+	if not is_blocked:
+		max_step = max_free_distance
 
-	var motion := target_pos - global_position
-	var max_speed = max_blocked_distance / max(delta, 0.0001)
+	if motion.length() > max_step:
+		motion = motion.normalized() * max_step
+
 	velocity = motion / max(delta, 0.0001)
-
-	if velocity.length() > max_speed:
-		velocity = velocity.normalized() * max_speed
-
 	move_and_slide()
 
-	var smoothing := blocked_smoothing
+	var blocked_now := get_slide_collision_count() > 0
 
-	# If not colliding at all, just sync up transform
-	if get_slide_collision_count() == 0:
-		global_position = target_pos
-		smoothing = free_smoothing
-		if is_blocked:
-			is_blocked = false
-			unblocked.emit()
-			
-	# update blocked state
-	else:
+	if blocked_now:
 		blocking_normal = get_slide_collision(0).get_normal()
-		if !is_blocked:
-			is_blocked = true
+	else:
+		unblocked_time += delta
+
+	if blocked_now != is_blocked:
+		is_blocked = blocked_now
+		if is_blocked:
 			blocked.emit()
+			if enable_hand_haptics and unblocked_time > 0.6:
+				get_parent().trigger_haptic_pulse("haptic", 20.0, 0.5, 0.08, 0.0)
+			unblocked_time = 0.0
+		else:
+			unblocked.emit()
 
-	# Rotation smoothing
-	var rot_t := 1.0 - exp(-smoothing * delta)
-
+	# Rotation
 	var from_basis := global_basis.orthonormalized()
-	var to_basis := target_transform.basis.orthonormalized()
+	var to_basis = from_basis
+	var rot_t := 0.0
+
+	if is_blocked:
+		# rotate either palm or back of hand to align with wall by hill climb search
+		var rotation_step := inverse_lerp(
+			rotate_to_wall_start_distance,
+			rotate_to_wall_full_distance,
+			distance
+		)
+		rotation_step = clamp(rotation_step, 0.0, 1.0)
+
+		to_basis = rotate_nearest_hand_side_to_wall(
+			target_transform.basis,
+			blocking_normal,
+			rotation_step
+		)
+
+		rot_t = 1.0 - exp(-blocked_smoothing * delta)
+
+	else:
+		# reset wall facing cache
+		wall_hand_side_sign = 0.0
+		last_blocking_normal = Vector3.ZERO
+		rot_t = 1.0 - exp(-free_smoothing  * delta)
+		to_basis = target_transform.basis.orthonormalized()
 
 	global_basis = from_basis.slerp(to_basis, rot_t).orthonormalized()
+
+# determines which side of the hand, palm or back, is facing the wall
+func get_hand_side_sign(b: Basis, wall_normal: Vector3) -> float:
+	var palm_dot := b.x.normalized().dot(wall_normal.normalized())
+
+	if abs(palm_dot) < 0.001:
+		return 1.0
+
+	return sign(palm_dot)
+
+func update_wall_side_sign(b: Basis, wall_normal: Vector3) -> void:
+	var n := wall_normal.normalized()
+
+	var normal_changed = last_blocking_normal == Vector3.ZERO \
+		or last_blocking_normal.dot(n) < 1.0 - normal_change_threshold
+
+	if wall_hand_side_sign == 0.0 or normal_changed:
+		wall_hand_side_sign = get_hand_side_sign(b, n)
+		last_blocking_normal = n
+
+func rotate_nearest_hand_side_to_wall(
+	base_basis: Basis,
+	wall_normal: Vector3,
+	amount: float
+) -> Basis:
+	var b := base_basis.orthonormalized()
+	var palm_axis := b.x.normalized()
+	var n := wall_normal.normalized()
+
+	update_wall_side_sign(b, n)
+	
+	var current_score := palm_axis.dot(n) * wall_hand_side_sign
+
+	if current_score >= wall_align_min_dot:
+		return b
+
+	var angle_step = wall_align_max_angle_step * clamp(amount, 0.0, 1.0)
+
+	var best_basis := b
+	var best_score := palm_axis.dot(n) * wall_hand_side_sign
+
+	for i in range(16):
+		var axis_angle := TAU * float(i) / 8.0
+
+		var rotation_axis := Basis(palm_axis, axis_angle) * b.y
+		rotation_axis = rotation_axis.normalized()
+
+		for sign_dir in [-1.0, 1.0]:
+			var candidate := Basis(rotation_axis, angle_step * sign_dir) * b
+			var candidate_palm := candidate.x.normalized()
+
+			var score := candidate_palm.dot(n) * wall_hand_side_sign
+
+			if score > best_score:
+				best_score = score
+				best_basis = candidate
+
+	return best_basis.orthonormalized()
 
 # Finds the closest valid location to the controller along the path from the camera to the controller
 @export var hand_surface_margin := 0.04
