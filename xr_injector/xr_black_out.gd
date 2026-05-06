@@ -1,5 +1,7 @@
 extends Node3D
 
+var terrain_collision_fade = false
+
 @export_range(0, 1, 0.1) var fade = 0.0:
 	set(value):
 		fade = value
@@ -9,10 +11,10 @@ extends Node3D
 var material : ShaderMaterial
 
 func _update_fade():
-	if fade == 0.0:
+	if !terrain_collision_fade or fade == 0.0:
 		$MeshInstance3D.visible = false
 	else:
-		if get_parent().get_parent().terrain_collision_fade and material:
+		if material:
 			material.set_shader_parameter("albedo", Color(0.0, 0.0, 0.0, fade))
 		$MeshInstance3D.visible = true
 

@@ -97,6 +97,76 @@ func _physics_process(delta):
 	if climber_head_collision != null and is_instance_valid(climber_head_collision):
 		climber_head_collision.global_position = xr_scene.xr_camera_3d.global_position + head_collider_offset * xr_scene.xr_world_scale
 
+
+var primary_hook_down := false
+var secondary_hook_down := false
+
+func _input(event: InputEvent) -> void:
+	if Dialogic.current_timeline != null:
+		return
+		
+	var toggle_mode = GameSettings.config.get_value("input", "hook_toggle_mode", false)
+
+	if event.is_action_pressed("ioa_hook_primary"):
+		primary_hook_down = true
+		on_hook_pressed(toggle_mode, true)
+
+	elif event.is_action_pressed("ioa_hook_secondary"):
+		secondary_hook_down = true
+		on_hook_pressed(toggle_mode, false)
+
+	if event.is_action_released("ioa_hook_primary"):
+		primary_hook_down = false
+		on_hook_released(toggle_mode)
+
+	elif event.is_action_released("ioa_hook_secondary"):
+		secondary_hook_down = false
+		on_hook_released(toggle_mode)
+		
+func on_hook_pressed(toggle_mode: bool, isPrimary : bool) -> void:
+	if not climber.grapple_claw_is_enabled:
+		return
+
+	if not toggle_mode:
+
+		#thrower_node
+		var t = ClimberState_Throw_mod_script.new()
+		t._movement_device = mod_camera_parent
+
+		if isPrimary:
+			climber.Rope._claw.thrower_node = xr_scene.xr_right_controller
+			climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
+		else:
+			climber.Rope._claw.thrower_node = xr_scene.xr_left_controller
+			climber.Edge.set_root(xr_scene.xr_left_hand, xr_scene.use_physics_hands)
+			
+		climber.set_climber_state(t)
+	else:
+		if climber.activeClimberState != climber.defaultClimberState:
+			climber.set_climber_state(climber.defaultClimberState)
+			
+		elif not (climber.activeClimberState is ClimberState_Throw):
+			var t = ClimberState_Throw_mod_script.new()
+			t._movement_device = mod_camera_parent
+			
+			if isPrimary:
+				climber.Rope._claw.thrower_node = xr_scene.xr_right_controller
+				climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
+			else:
+				climber.Rope._claw.thrower_node = xr_scene.xr_left_controller
+				climber.Edge.set_root(xr_scene.xr_left_hand, xr_scene.use_physics_hands)
+				
+			climber.set_climber_state(t)
+
+func on_hook_released(toggle_mode: bool) -> void:
+	if toggle_mode:
+		return
+
+	if primary_hook_down or secondary_hook_down:
+		return
+
+	climber.set_climber_state(climber.defaultClimberState)
+
 func setup_mod():
 	print("mod setup")
 	
@@ -107,6 +177,9 @@ func setup_mod():
 	setup_request = false
 	
 	modify_ui_style()
+	
+	primary_hook_down = false
+	secondary_hook_down = false
 	
 	match xr_scene.movement_direction_device:
 		1:
@@ -166,7 +239,7 @@ func setup_mod():
 	var edgemod := load("res://xr_injector/modded_scripts/climbing_edge_player_mod.gd")
 	climber.Edge.set_script(edgemod)
 	climber.Edge.setup(climber)
-	climber.Edge.set_root(xr_scene.xr_right_hand, true)
+	climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
 	climber.Edge.scale = xr_scene.xr_world_scale * 0.85
 	var light := climber.get_node_or_null("OmniLight3D") as OmniLight3D
 	if light != null:
@@ -415,3 +488,4 @@ func set_xr_scene(new_xr_scene) -> void:
 	xr_scene = new_xr_scene
 	scene_root = get_node("/root")
 	xr_scene.xr_pointer.set_enabled(false)
+	InputMap.action_erase_events("ioa_hook")

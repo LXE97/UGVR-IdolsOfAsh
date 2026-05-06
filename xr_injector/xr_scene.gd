@@ -1614,6 +1614,8 @@ func set_xr_game_options():
 	movement_direction_device  = xr_config_handler.movement_direction_device
 	ignore_sprint  = xr_config_handler.ignore_sprint
 	
+	xr_black_out.terrain_collision_fade = terrain_collision_fade
+	
 	# Load camera options
 	xr_world_scale = xr_config_handler.xr_world_scale
 	camera_offset = xr_config_handler.camera_offset

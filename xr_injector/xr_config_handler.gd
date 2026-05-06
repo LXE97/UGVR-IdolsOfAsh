@@ -309,6 +309,11 @@ var cfg_base_path : String
 
 # Set up files for configs
 func _ready():
+	
+	# LXE97: add custom game actions
+	InputMap.add_action("ioa_hook_primary")
+	InputMap.add_action("ioa_hook_secondary")
+	
 	var game_name : String = ProjectSettings.get_setting("application/config/name")
 	
 	if game_name == "":
