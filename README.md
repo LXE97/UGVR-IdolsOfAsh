@@ -1,5 +1,5 @@
 # Idols of Ash VR
-##### Unofficial mod to play **[Idols of Ash](https://store.steampowered.com/app/4450800/Idols_of_Ash)** in OpenXR. This is a fork of Universal Godot VR Injector with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
+ Unofficial mod to play **[Idols of Ash](https://store.steampowered.com/app/4450800/Idols_of_Ash)** in OpenXR. This is a fork of Universal Godot VR Injector with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
 
 Working game versions:
 * 1.32

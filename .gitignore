@@ -1,5 +1,6 @@
 *
 project.godot
+!control_map.png
 !xr_injector/
 !xr_injector/**
 !overridecfg
