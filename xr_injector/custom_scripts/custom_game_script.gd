@@ -128,35 +128,21 @@ func on_hook_pressed(toggle_mode: bool, isPrimary : bool) -> void:
 		return
 
 	if not toggle_mode:
-
-		#thrower_node
-		var t = ClimberState_Throw_mod_script.new()
-		t._movement_device = mod_camera_parent
-
-		if isPrimary:
-			climber.Rope._claw.thrower_node = xr_scene.xr_right_controller
-			climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
-		else:
-			climber.Rope._claw.thrower_node = xr_scene.xr_left_controller
-			climber.Edge.set_root(xr_scene.xr_left_hand, xr_scene.use_physics_hands)
-			
-		climber.set_climber_state(t)
+		throw_hook(isPrimary)
+		
 	else:
-		if climber.activeClimberState != climber.defaultClimberState:
-			climber.set_climber_state(climber.defaultClimberState)
-			
-		elif not (climber.activeClimberState is ClimberState_Throw):
-			var t = ClimberState_Throw_mod_script.new()
-			t._movement_device = mod_camera_parent
-			
-			if isPrimary:
-				climber.Rope._claw.thrower_node = xr_scene.xr_right_controller
-				climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
-			else:
-				climber.Rope._claw.thrower_node = xr_scene.xr_left_controller
-				climber.Edge.set_root(xr_scene.xr_left_hand, xr_scene.use_physics_hands)
-				
-			climber.set_climber_state(t)
+		if isPrimary:
+			if climber.Rope._claw.thrower_node == xr_scene.xr_right_controller and \
+			climber.activeClimberState != climber.defaultClimberState:
+				climber.set_climber_state(climber.defaultClimberState)
+				return
+		else:	
+			if climber.Rope._claw.thrower_node == xr_scene.xr_left_controller and \
+			climber.activeClimberState != climber.defaultClimberState:
+				climber.set_climber_state(climber.defaultClimberState)
+				return
+		
+		throw_hook(isPrimary)
 
 func on_hook_released(toggle_mode: bool) -> void:
 	if toggle_mode:
@@ -166,6 +152,19 @@ func on_hook_released(toggle_mode: bool) -> void:
 		return
 
 	climber.set_climber_state(climber.defaultClimberState)
+
+func throw_hook(isPrimary : bool):
+	var t = ClimberState_Throw_mod_script.new()
+	t._movement_device = mod_camera_parent
+
+	if isPrimary:
+		climber.Rope._claw.thrower_node = xr_scene.xr_right_controller
+		climber.Edge.set_root(xr_scene.xr_right_hand, xr_scene.use_physics_hands)
+	else:
+		climber.Rope._claw.thrower_node = xr_scene.xr_left_controller
+		climber.Edge.set_root(xr_scene.xr_left_hand, xr_scene.use_physics_hands)
+		
+	climber.set_climber_state(t)
 
 func setup_mod():
 	print("mod setup")
