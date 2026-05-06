@@ -1,5 +1,5 @@
 # Idols of Ash VR
- Unofficial mod to play **[Idols of Ash](https://store.steampowered.com/app/4450800/Idols_of_Ash)** in OpenXR. This is a fork of Universal Godot VR Injector with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
+##### Unofficial mod to play **[Idols of Ash](https://idolsofash.com/)** in OpenXR. This is a fork of Universal Godot VR Injector with some changes to enable the grappling hook to be used with motion controllers. Tested on Quest with Virtual Desktop, with roomscale movement enabled.
 
 Working game versions:
 * 1.32
@@ -7,7 +7,7 @@ Working game versions:
 * 1.30
 
 ## Installation
-1. Download the [release zip](https://github.com/LXE97/UGVR-IdolsOfAsh/releases/download/v1.0.0/IdolsOfAsh-VR.zip)
+1. Download the [release zip](https://github.com/LXE97/UGVR-IdolsOfAsh/releases/tag/v2.0.0)
 2. Extract it to your IdolsOfAsh directory (next to idols_of_ash.exe)
     - **If you have installed other mods** that came with their own override.cfg, you'll need to merge those manually. For example:
         ````
@@ -20,7 +20,7 @@ Working game versions:
 
 ###
 #### Uninstallation
-To disable the mod, comment out this line in override.cfg:
+To disable VR, comment out this line in override.cfg:
 `;XRInjector="*res://xr_injector/xr_injector.gd"`
 
 To uninstall, delete the `xr_injector/` folder
@@ -81,7 +81,7 @@ Misc options in `game_options.cfg`:
 * `enable_hand_haptics` **Default: false**
   * Controller vibration on hook attach / hand collision with walls
 ## Known Issues
-* If the player dies with one of the triggers held down, it won't fire the first time you press the trigger after respawning
+* none yet :)
 
 ## Credits
 Thanks to [ElKameleon](https://github.com/ElKameleon/DescentWithoutDread/tree/main) for the detailed guide on how to set up Godot mods.
