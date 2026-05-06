@@ -36,6 +36,9 @@ func _ready():
 	pass
 	
 func _on_scene_changed(new_scene: Node) -> void:
+	primary_hook_down = false
+	secondary_hook_down = false
+	
 	if new_scene:
 		print("scene changed to: ", new_scene.scene_file_path)
 		var path := new_scene.scene_file_path
@@ -79,13 +82,15 @@ func _process(delta):
 		var s = climber.activeClimberState.get_script()
 		if s == ClimberState_Attached_script: 
 			replace_state(climber, climber.activeClimberState, ClimberState_Attached_mod_script)
+			if xr_scene.enable_hook_haptics:
+				climber.Rope._claw.thrower_node.trigger_haptic_pulse("haptic", 150, 1.0, 0.13, 0.0)
 		elif s == ClimberState_Throw_script:
 			replace_state(climber, climber.activeClimberState, ClimberState_Throw_mod_script)
 		#elif s is ClimberState_Default and not (s is ClimberState_Default_mod):
 		#	replace_state(climber, s, ClimberState_Default_mod)
 		
 		if xr_scene.use_palm_healthbar:	
-			if xr_scene.get_parent().get_parent() is CharacterBody3D:
+			if xr_scene.xr_origin_3d.get_parent() is CharacterBody3D:
 				update_palm_hud_fade()
 	
 var head_collider_offset := Vector3(0.0, 0.07, 0.0)
@@ -165,6 +170,8 @@ func throw_hook(isPrimary : bool):
 		climber.Edge.set_root(xr_scene.xr_left_hand, xr_scene.use_physics_hands)
 		
 	climber.set_climber_state(t)
+	#if xr_scene.enable_hand_haptics:
+		#climber.Rope._claw.thrower_node.trigger_haptic_pulse("haptic", 0.0, 0.5, 0.4, 0.0)
 
 func setup_mod():
 	print("mod setup")
@@ -176,9 +183,6 @@ func setup_mod():
 	setup_request = false
 	
 	modify_ui_style()
-	
-	primary_hook_down = false
-	secondary_hook_down = false
 	
 	match xr_scene.movement_direction_device:
 		1:
@@ -379,14 +383,21 @@ func steal_healthbar() -> void:
 	slack.offset_bottom = 20
 
 func update_palm_hud_fade() -> void:
-	for child in xr_scene.xr_left_hand.get_children():
-		if child is MeshInstance3D:            
-			var to_camera = (xr_scene.xr_camera_3d.global_position - xr_scene.xr_left_hand.global_position).normalized()
+	for child in mod_viewport_control.get_parent().get_parent().get_children():
+		if child is MeshInstance3D:   
+			var camera = xr_scene.xr_camera_3d
+			var hand = xr_scene.xr_left_hand
+			
+			var palm_normal = hand.global_basis.x.normalized()
+			var hand_to_camera = (camera.global_position - hand.global_position).normalized()
 
-			var palm_normal = xr_scene.xr_left_hand.global_basis.x.normalized()
+			var palm_facing_camera = palm_normal.dot(hand_to_camera)
 
-			var facing = palm_normal.dot(to_camera)
-			var target_alpha = clamp(inverse_lerp(0.6, 0.9, facing), 0.0, 1.0)
+			var camera_forward = -camera.global_basis.z.normalized()
+			var camera_looking_at_hand = camera_forward.dot(-hand_to_camera)
+
+			var facing = palm_facing_camera * camera_looking_at_hand
+			var target_alpha = clamp(inverse_lerp(0.7, 1.0, facing), 0.0, 1.0)
 
 			var mat := child.material_override as StandardMaterial3D
 			if mat == null:

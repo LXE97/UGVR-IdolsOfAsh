@@ -109,7 +109,7 @@ var pointer_gesture_toggle_button = "trigger_click"
 var gesture_load_action_map_button = "by_button"
 
 # Button to set height with gesture (temporary, should eventually be GUI) - Needs to be included in config file
-var gesture_set_user_height_button = "by_button"
+var gesture_set_user_height_button = "primary_click"
 
 # Button to manually toggle to next potential active camera with head gesture
 var gesture_toggle_active_camera_button = "ax_button"
@@ -241,6 +241,8 @@ var physics_hand_drag : float = 0.05
 var player_light_multiplier : float = 0.8
 var movement_direction_device : int = 0
 var ignore_sprint : bool = true
+var enable_hand_haptics : bool = true
+var enable_hook_haptics : bool = true
 
 func _ready() -> void:
 	set_process(false)
@@ -1309,6 +1311,7 @@ func instantiate_hand(isLeft : bool):
 		if use_physics_hands:
 			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low_physics.tscn").instantiate()
 			xr_left_hand.xr_camera = xr_camera_3d
+			xr_left_hand.enable_hand_haptics = enable_hand_haptics
 		else:
 			xr_left_hand = load("res://xr_injector/hands/scenes/lowpoly/left_hand_low.tscn").instantiate()
 		xr_left_controller.add_child(xr_left_hand)
@@ -1318,6 +1321,7 @@ func instantiate_hand(isLeft : bool):
 		if use_physics_hands:
 			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low_physics.tscn").instantiate()
 			xr_right_hand.xr_camera = xr_camera_3d
+			xr_right_hand.enable_hand_haptics = enable_hand_haptics
 		else:
 			xr_right_hand = load("res://xr_injector/hands/scenes/lowpoly/right_hand_low.tscn").instantiate()
 		xr_right_controller.add_child(xr_right_hand)
@@ -1613,6 +1617,8 @@ func set_xr_game_options():
 	player_light_multiplier = xr_config_handler.player_light_multiplier
 	movement_direction_device  = xr_config_handler.movement_direction_device
 	ignore_sprint  = xr_config_handler.ignore_sprint
+	enable_hand_haptics = xr_config_handler.enable_hand_haptics
+	enable_hook_haptics = xr_config_handler.enable_hook_haptics
 	
 	xr_black_out.terrain_collision_fade = terrain_collision_fade
 	

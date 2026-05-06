@@ -25,11 +25,9 @@ func set_root(target: Node, use_physics: bool):
 		root_node = target
 
 func _on_hand_blocked() -> void:
-	print("Hand blocked")
 	root_node = hand
 
 func _on_hand_unblocked() -> void:
-	print("Hand unblocked")
 	root_node = hand.get_parent()
 
 func apply_correction(climber: Climber, delta: float):
